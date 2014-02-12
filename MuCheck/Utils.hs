@@ -12,10 +12,14 @@ module MuCheck.Utils ( genFileNames
                      , ifElse
                      , selectIfElseBoolNegOps
                      , selectGuardedBoolNegOps
-                     , removeOneElem) where
+                     , removeOneElem
+                     , printStringList
+                     , printlnList
+                     , showPerCent
+                     , percent) where
 
 import Data.Maybe
-import Data.List(elemIndex, nub)
+import Data.List(elemIndex, nub, intersperse)
 import Data.Generics
 import Language.Haskell.Exts
 import MuCheck.MuOp
@@ -23,19 +27,23 @@ import Control.Monad
 
 
 -- SYB functions
+-- apply a mutating function on a piece of code once at a time
 once :: MonadPlus m => GenericM m -> GenericM m
 once f x = f x `mplus` gmapMo (once f) x
 
 once' :: (forall a. Data a => a -> Maybe a) -> (forall a. Data a => a -> a)
 once' f x = maybe x id $ once f x
 
+-- select all code components satisfying a certain predicate
 selectMany :: (Data a, Typeable b) => (b -> Bool) -> a -> [b]
 selectMany f = everything (++) ([] `mkQ` keep f)
 
 keep f x = case (f x) of
             True  -> [x]
             False -> []
--- special case of selectMany
+
+-- special case of selectMany, which selects the first
+-- components satisfying a predicate
 selectOne f p = case (selectMany f p) of
                     [] -> Nothing
                     xs -> Just $ head xs
@@ -43,11 +51,11 @@ selectOne f p = case (selectMany f p) of
 -- checking if a piece of code c is in the program p
 p `contains` c = not . null $ selectMany (\c' -> c == c') p
 
--- all ops whose sources/before are in the function's code
--- should be included.
+-- selecting all relevant ops
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
 relevantOps m = filter (relevantOp m)
 
+-- check if an operator can be applied to a program
 relevantOp :: (Data a, Eq a) => a -> MuOp -> Bool
 relevantOp m op = once (mkMp' op) m /= Nothing
 
@@ -68,7 +76,6 @@ selectIntOps = selectValOps isInt [\(Int i) -> Int (i + 1)
                     where isInt (Int _) = True
                           isInt _       = False
 
-
 -- negating boolean in if/else statements
 selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectIfElseBoolNegOps = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3]
@@ -88,7 +95,8 @@ selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
 
 ifElse a b c = if a then b else c
 
-
+-- generating mutant files names
+-- e.g.: "Quicksort.hs" ==> "Quicksort_1.hs", "Quicksort_2.hs", etc.
 genFileNames = genFileNamesWith 1
 
 genFileNamesWith :: Int -> String -> [String]
@@ -97,10 +105,21 @@ genFileNamesWith fstIndex s =  zipWith (++) prefix2 (repeat ext)
           prefix1 = zipWith (++) (repeat name) (repeat "_")
           prefix2 = zipWith (++) prefix1 $ map show [fstIndex..]
 
-
+-- undeterministically remove one element from a list
 removeOneElem = filter (/= []) . removeOneElemHelper
 
 removeOneElemHelper :: [a] -> [[a]]
 removeOneElemHelper [] = []
 removeOneElemHelper [_] = [[]]
 removeOneElemHelper (x:xs) = xs : (map (x:) $ removeOneElemHelper xs)
+
+-- utils for interpreter
+showPerCent x = " (" ++ show x ++ "%)"
+n `percent` t = 100 * n  `div` t
+
+printStringList :: [String] -> String
+printStringList = concat . intersperse "\n"
+
+printlnList :: Show a => [a] -> String
+printlnList =  printStringList . map show
+

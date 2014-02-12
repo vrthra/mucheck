@@ -13,16 +13,6 @@ import MuCheck.Utils
 import MuCheck.Operators
 import MuCheck.StdArgs
 
-
--- NOTE: sometimes we might want to change the type of the mutated function
--- to a more specific type so generated mutant code will compile.
-
-{--
-  genMutantsWith args  filename  = do
-                ast <- getASTFromFile filename
-                let decls = getDecls ast
-                    func = fromJust $ selectOne (isFunctionD (Ident funcname)) ast
---}                    
 genMutants = genMutantsWith stdArgs
 genMutantsWith = genMutantsWithFstIdx 1
 genMutantsFstIdx fstIdx = genMutantsWithFstIdx fstIdx stdArgs
@@ -49,12 +39,12 @@ genMutantsWithFstIdx fstIdx args funcname filename  = do
                 return $ length programMutants
 
 -- Mutating a function's code using a bunch of mutation operators
--- the first argument is the name of the function to be mutated
--- NOTE: In all the three mutate funcitons, we assume working
+-- NOTE: In all the three mutate functions, we assume working
 -- with functions declaration.
 mutates :: [MuOp] -> Decl -> [Decl]
 mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
 
+-- the third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
 mutatesN ops m 1 = ops >>= \op -> mutate op m
 mutatesN ops m c = let ms = mutatesN ops m (c-1)
@@ -112,12 +102,10 @@ extractStrings [] = []
 extractStrings ((Match _ (Symbol name) _ _ _ _):xs) = name : (extractStrings xs)
 extractStrings ((Match _ (Ident name) _ _ _ _):xs) = name : (extractStrings xs)
 
-
 getFuncNames :: [Decl] -> [String]
 getFuncNames [] = []
 getFuncNames ((FunBind m):xs) = (extractStrings m) ++ getFuncNames xs
 getFuncNames (_:xs) = getFuncNames xs
-
   
 putDecls :: [Decl] -> Module -> Module
 putDecls decls (Module a b c d e f _) = Module a b c d e f decls

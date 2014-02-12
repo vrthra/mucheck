@@ -2,8 +2,6 @@ module Examples.Quicksort where
 import Test.QuickCheck
 import Data.List
 
--- note that for the current code, quickSort_17.hs should be exactly equivalent to the current version of quickSort
-
 qsort :: [Int] -> [Int]
 qsort [] = []
 qsort (x:xs) = qsort l ++ [x] ++ qsort r
