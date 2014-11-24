@@ -21,7 +21,7 @@ genMutantsWithFstIdx :: Int -> StdArgs -> String -> FilePath -> IO Int
 genMutantsWithFstIdx fstIdx args funcname filename  = do
                 ast <- getASTFromFile filename
                 let decls = getDecls ast
-                    func = fromJust $ selectOne (isFunctionD (Ident funcname)) ast
+                    func = fromJust $ selectOne (isFunctionD funcname) ast
                     valOps = ifElse (doMutateValues args) (selectIntOps func) []
                     ifElseNegOps = ifElse (doNegateIfElse args) (selectIfElseBoolNegOps func) []
                     guardedBoolNegOps = ifElse (doNegateGuards args) (selectGuardedBoolNegOps func) []
@@ -57,10 +57,12 @@ mutate :: MuOp -> Decl -> [Decl]
 mutate op m = once (mkMp' op) m \\ [m]
 
 isFunction :: Name -> GenericQ Bool
-isFunction n = False `mkQ` isFunctionD n
+isFunction (Ident n) = False `mkQ` isFunctionD n
 
-isFunctionD :: Name -> Decl -> Bool
-isFunctionD n (FunBind (Match _ n' _ _ _ _ : _)) = n == n'
+isFunctionD :: String -> Decl -> Bool
+isFunctionD n (FunBind (Match _ (Ident n') _ _ _ _ : _)) = n == n'
+isFunctionD n (FunBind (Match _ (Symbol n') _ _ _ _ : _)) = n == n'
+isFunctionD n (PatBind _ (PVar (Ident n')) _ _)          = n == n'
 isFunctionD _ _                                  = False
 
 -- generate all operators for permutating pattern matches in
