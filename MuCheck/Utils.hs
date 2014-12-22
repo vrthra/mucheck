@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, RankNTypes, NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes, NoMonomorphismRestriction #-}
 
 module MuCheck.Utils ( genFileNames
                      , genFileNamesWith
@@ -18,8 +18,7 @@ module MuCheck.Utils ( genFileNames
                      , showPerCent
                      , percent) where
 
-import Data.Maybe
-import Data.List(elemIndex, nub, intersperse)
+import Data.List(nub, intersperse)
 import Data.Generics
 import Language.Haskell.Exts
 import MuCheck.MuOp
@@ -37,10 +36,9 @@ once' f x = maybe x id $ once f x
 -- select all code components satisfying a certain predicate
 selectMany :: (Data a, Typeable b) => (b -> Bool) -> a -> [b]
 selectMany f = everything (++) ([] `mkQ` keep f)
-
-keep f x = case (f x) of
-            True  -> [x]
-            False -> []
+   where keep fn x = case (fn x) of
+          True  -> [x]
+          False -> []
 
 -- special case of selectMany, which selects the first
 -- components satisfying a predicate

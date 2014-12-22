@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, RankNTypes, ImpredicativeTypes, NoMonomorphismRestriction #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 
 module MuCheck.Mutation where
 

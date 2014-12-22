@@ -1,5 +1,3 @@
-{-# LANGUAGE ExistentialQuantification, RankNTypes #-}
-
 module MuCheck.MuOp (MuOp
           , (==>)
           , (==>*)
@@ -10,7 +8,6 @@ module MuCheck.MuOp (MuOp
           ) where
 
 import Language.Haskell.Exts
-import Language.Haskell.Exts.Pretty
 import Data.Generics
 import Control.Monad
 
