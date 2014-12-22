@@ -23,23 +23,39 @@ checkPropsOnMutants = mutantCheckSummary
 checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
 checkTestSuiteOnMutants = mutantCheckSummary
 
-mutantCheckSummary mutantFiles topModule codes logFile  =
-    do
-        results <- sequence $ map (runCodeOnMutants mutantFiles topModule) codes
+-- main entry point
+mutantCheckSummary mutantFiles topModule evalSrc logFile  = do
+        results <- sequence $ map (runCodeOnMutants mutantFiles topModule) evalSrc
         let singleTestSummaries = map (singleSummary mutantFiles) results
-            overallSummary = multipleSummary results
-            codes' = zipWith (++) (repeat "\n=======================\n") codes
+            terminalSummary = fst $ multipleSummary results
+            logSummary = snd $ multipleSummary results
+            evalSrc' = zipWith (++) (repeat "\n=======================\n") evalSrc
         -- print results to terminal
-        curTime <- getCurrentTime
-        putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ fst overallSummary 
-        putStrLn $ Mu.printStringList (zipWith (++) codes' $ map fst singleTestSummaries)
+        putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ terminalSummary
+        putStrLn $ Mu.printStringList (zipWith (++) evalSrc' $ map fst singleTestSummaries)
         -- print results to logfile
-        appendFile logFile $ "=============================\nTest run at " ++ show curTime ++ "\n" 
-        appendFile logFile $ "OVERALL RESULTS:\n" ++ snd overallSummary ++ Mu.printStringList (zipWith (++) codes' $ map snd singleTestSummaries)
+        appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ Mu.printStringList (zipWith (++) evalSrc' $ map snd singleTestSummaries)
         putStr "\n[]===== END OF OVERALL RESULTS ====="
         -- hacky solution to avoid printing entire results to stdout and to give
         -- guidance to the type checker in picking specific Summarizable instances
-        return $ tail [head . map snd . snd . partitionEithers . head $ results] 
+        return $ tail [head . map snd . snd . partitionEithers . head $ results]
+
+-- Interpreter Functionalities
+-- Examples
+-- t = runI (runCodeOnMutant "Examples\\Quicksort.hs" "Quicksort" "quickCheckResult idEmp" "E:/logfile.txt")
+-- mytest = checkPropsOnMutants (take 200 $ genFileNames "Examples/Quicksort.hs") "Examples.Quicksort"
+--          ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"] "./logs.txt"
+runCodeOnMutants mutantFiles topModule code = sequence . map I.runInterpreter $ resmap
+  where resmap =  map (\mf -> runCodeOnMutant mf topModule code) mutantFiles
+
+runCodeOnMutant :: (I.MonadInterpreter m, Typeable t) => String -> String -> String -> m (String, t)
+runCodeOnMutant fileName topModule code = do
+                I.loadModules [fileName]
+                I.setTopLevelModules [topModule]
+                I.setImportsQ [("Prelude", Nothing), ("Test.QuickCheck", Nothing), ("Test.HUnit", Nothing)]
+                result <- I.interpret code (I.as :: (Typeable a => IO a)) >>= I.liftIO
+                return (fileName, result)
+
 
 -- Class/Instance declaration
 type MutantFilename = String
@@ -71,7 +87,7 @@ instance Summarizable HUnit.Counts where
                        ++ "\n\nSuccesses:\n" ++ Mu.printlnList successCases
                        ++ "\n\nFailures:\n" ++ Mu.printlnList failuresCases
                        ++ "\n\nError while running:\n" ++ Mu.printlnList runningErrorCases
-                       ++ "\n\nIncompletely tested (may include failures and running errors):\n" 
+                       ++ "\n\nIncompletely tested (may include failures and running errors):\n"
                        ++ Mu.printlnList failToFullyTryCases ++ "\n"
     multipleSummary = multipleCheckSummary (\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0)
 
@@ -93,6 +109,13 @@ instance Summarizable Qc.Result where
                                 ++ "\n\nSUCCESSES:\n " ++ Mu.printlnList successCases
                                 ++ "\n\nFAILURE:\n " ++ Mu.printlnList failureCases
                                 ++ "\n\nGAVEUPs:\n " ++ Mu.printlnList gaveUpCases ++ "\n"
+                        isFailure :: Qc.Result -> Bool
+                        isFailure Qc.Failure{} = True
+                        isFailure _         = False
+                        isGaveUp :: Qc.Result -> Bool
+                        isGaveUp Qc.GaveUp{} = True
+                        isGaveUp _        = False
+
     multipleSummary = multipleCheckSummary Qc.isSuccess
 
 -- we assume that checking each prop results in the same number of errorCases and executedCases
@@ -107,35 +130,8 @@ multipleCheckSummary isSuccessFunction results
                       countExecutedCases = length . head $ executedCases
                       countErrors = countMutants - length executedCases
                       terminalMsg = "\nTotal number of mutants: " ++ show countMutants
-                                 ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive 
+                                 ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive
                                  ++ Mu.showPerCent (countAlive `Mu.percent` countMutants) ++ "\n"
                                  ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ Mu.showPerCent (countErrors `Mu.percent` countMutants) ++ "\n"
                       logMsg = terminalMsg ++ "\nDetails:\n\n" ++ Mu.printlnList allSuccesses ++ "\n"
 
--- Interpreter Functionalities
-runCodeOnMutants mutantFiles topModule code = sequence . map I.runInterpreter $ map (\mf -> runCodeOnMutant mf topModule code) mutantFiles
-
-runCodeOnMutant fileName topModule code = do
-                I.loadModules [fileName]
-                I.setTopLevelModules [topModule]
-                I.setImportsQ [("Prelude", Nothing), ("Test.QuickCheck", Nothing), ("Test.HUnit", Nothing)]
-                result <- I.interpret code (I.as :: (Typeable a => IO a)) >>= I.liftIO
-                return (fileName, result)
-
-say :: String -> I.Interpreter ()
-say = I.liftIO . putStrLn
-
-printInterpreterError :: I.InterpreterError -> IO ()
-printInterpreterError e = putStrLn $ "Error: " ++ (show e)
-
-isFailure :: Qc.Result -> Bool
-isFailure Qc.Failure{} = True
-isFailure _         = False
-
-isGaveUp :: Qc.Result -> Bool
-isGaveUp Qc.GaveUp{} = True
-isGaveUp _        = False
-
--- Examples
--- t = runI (runCodeOnMutant "Examples\\Quicksort.hs" "Quicksort" "quickCheckResult idEmp" "E:/logfile.txt")
--- mytest = checkPropsOnMutants (take 200 $ genFileNames "Examples/Quicksort.hs") "Examples.Quicksort" ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"] "./logs.txt"

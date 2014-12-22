@@ -14,9 +14,9 @@ extraOps = Var . UnQual . Ident <$> ["qsort", "id", "reverse"]
 
 
 -- NOTE: On QuickCheck.hs's mutants, it takes ~3-4 minutes to test 323 mutants on three properies.
-mytest = checkPropsOnMutants (take 13 mutantFiles) topModule  codes logFile
+mytest = checkPropsOnMutants (take 13 mutantFiles) topModule  evalSrc logFile
   where mutantFiles = genFileNames "Examples/Quicksort.hs"
         topModule = "Examples.Quicksort"
-        codes = ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"]
+        evalSrc = ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"]
         logFile = "./logs.txt"
 
