@@ -2,25 +2,25 @@
 
 module MuCheck.Interpreter where
 
-import Language.Haskell.Interpreter
+import qualified Language.Haskell.Interpreter as I
 import Control.Monad
-import Test.QuickCheck.Test
-import Test.HUnit
+import qualified Test.QuickCheck.Test as Qc
+import qualified Test.HUnit as HUnit
 import Data.Typeable
-import MuCheck.Utils
+import qualified MuCheck.Utils as Mu
 import Data.Either
 import Data.List((\\), groupBy, sortBy)
 import Data.Time.Clock
 
-deriving instance Typeable Result
-deriving instance Typeable Counts
+deriving instance Typeable Qc.Result
+deriving instance Typeable HUnit.Counts
 
-type InterpreterOutput a = Either InterpreterError (String, a)
+type InterpreterOutput a = Either I.InterpreterError (String, a)
 
-checkPropsOnMutants :: [String] -> String -> [String] -> String -> IO [Result]
+checkPropsOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.Result]
 checkPropsOnMutants = mutantCheckSummary
 
-checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [Counts]
+checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
 checkTestSuiteOnMutants = mutantCheckSummary
 
 mutantCheckSummary mutantFiles topModule codes logFile  =
@@ -32,10 +32,10 @@ mutantCheckSummary mutantFiles topModule codes logFile  =
         -- print results to terminal
         curTime <- getCurrentTime
         putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ fst overallSummary 
-        putStrLn $ printStringList (zipWith (++) codes' $ map fst singleTestSummaries)
+        putStrLn $ Mu.printStringList (zipWith (++) codes' $ map fst singleTestSummaries)
         -- print results to logfile
         appendFile logFile $ "=============================\nTest run at " ++ show curTime ++ "\n" 
-        appendFile logFile $ "OVERALL RESULTS:\n" ++ snd overallSummary ++ printStringList (zipWith (++) codes' $ map snd singleTestSummaries)
+        appendFile logFile $ "OVERALL RESULTS:\n" ++ snd overallSummary ++ Mu.printStringList (zipWith (++) codes' $ map snd singleTestSummaries)
         putStr "\n[]===== END OF OVERALL RESULTS ====="
         -- hacky solution to avoid printing entire results to stdout and to give
         -- guidance to the type checker in picking specific Summarizable instances
@@ -49,14 +49,14 @@ class Typeable s => Summarizable s where
     singleSummary :: [MutantFilename] -> [InterpreterOutput s] -> (TerminalSummary, LogSummary)
     multipleSummary :: [[InterpreterOutput s]] -> (TerminalSummary, LogSummary)
 
-instance Summarizable Counts where
+instance Summarizable HUnit.Counts where
     singleSummary mutantFiles results = (terminalMsg, logMsg)
         where (loadingErrorCases, executedCases) = partitionEithers results
               loadingErrorFiles = mutantFiles \\ map fst executedCases
-              successCases = filter ((\c -> (cases c == tried c) && failures c == 0 && errors c == 0) . snd) executedCases
-              failuresCases = filter ((>0) . failures . snd) executedCases
-              runningErrorCases = (filter ((>0) . errors . snd) executedCases) \\ failuresCases
-              failToFullyTryCases = filter ((\c -> cases c > tried c) . snd) executedCases
+              successCases = filter ((\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0) . snd) executedCases
+              failuresCases = filter ((>0) . HUnit.failures . snd) executedCases
+              runningErrorCases = (filter ((>0) . HUnit.errors . snd) executedCases) \\ failuresCases
+              failToFullyTryCases = filter ((\c -> HUnit.cases c > HUnit.tried c) . snd) executedCases
               r = length results
               le = length loadingErrorCases
               [s, fl, re, ftc] = map length [successCases, failuresCases, runningErrorCases, failToFullyTryCases]
@@ -66,34 +66,34 @@ instance Summarizable Counts where
                             "\nFailures (killed): " ++ show fl ++
                             "\nError while running: " ++ show re ++
                             "\nIncompletely tested (may include failures and running errors): " ++ show ftc
-              logMsg = terminalMsg ++ "\n\nDetails: \n\nLoading error files:\n" ++ printlnList loadingErrorFiles
-                       ++ "\n\nLoading error messages:\n" ++ printlnList loadingErrorCases
-                       ++ "\n\nSuccesses:\n" ++ printlnList successCases
-                       ++ "\n\nFailures:\n" ++ printlnList failuresCases
-                       ++ "\n\nError while running:\n" ++ printlnList runningErrorCases
+              logMsg = terminalMsg ++ "\n\nDetails: \n\nLoading error files:\n" ++ Mu.printlnList loadingErrorFiles
+                       ++ "\n\nLoading error messages:\n" ++ Mu.printlnList loadingErrorCases
+                       ++ "\n\nSuccesses:\n" ++ Mu.printlnList successCases
+                       ++ "\n\nFailures:\n" ++ Mu.printlnList failuresCases
+                       ++ "\n\nError while running:\n" ++ Mu.printlnList runningErrorCases
                        ++ "\n\nIncompletely tested (may include failures and running errors):\n" 
-                       ++ printlnList failToFullyTryCases ++ "\n"
-    multipleSummary = multipleCheckSummary (\c -> (cases c == tried c) && failures c == 0 && errors c == 0)
+                       ++ Mu.printlnList failToFullyTryCases ++ "\n"
+    multipleSummary = multipleCheckSummary (\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0)
 
-instance Summarizable Result where
+instance Summarizable Qc.Result where
     singleSummary mutantFiles results = (terminalMsg, logMsg)
                   where (errorCases, executedCases) = partitionEithers results
-                        [successCases, failureCases, gaveUpCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isGaveUp]
+                        [successCases, failureCases, gaveUpCases] = map (\c -> filter (c . snd) executedCases) [Qc.isSuccess, isFailure, isGaveUp]
                         r = length results
                         e = length errorCases
                         [s,f,g] = map length [successCases, failureCases, gaveUpCases]
                         errorFiles = mutantFiles \\ map fst executedCases
                         terminalMsg = "\n\nTotal number of mutants: " ++ show r ++
-                                      "\n\nErrors: " ++ show e ++ showPerCent (e `percent` r) ++
-                                      "\nSuccesses (not killed): " ++ show s ++ showPerCent (s `percent` r) ++
-                                      "\nFailures (killed): " ++ show f ++ showPerCent (f `percent` r) ++
-                                      "\nGaveups: " ++ show g ++ showPerCent (g `percent` r)
-                        logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ printlnList errorFiles
-                                ++ "\n\nLoading error messages:\n " ++ printlnList errorCases
-                                ++ "\n\nSUCCESSES:\n " ++ printlnList successCases
-                                ++ "\n\nFAILURE:\n " ++ printlnList failureCases
-                                ++ "\n\nGAVEUPs:\n " ++ printlnList gaveUpCases ++ "\n"
-    multipleSummary = multipleCheckSummary isSuccess
+                                      "\n\nErrors: " ++ show e ++ Mu.showPerCent (e `Mu.percent` r) ++
+                                      "\nSuccesses (not killed): " ++ show s ++ Mu.showPerCent (s `Mu.percent` r) ++
+                                      "\nFailures (killed): " ++ show f ++ Mu.showPerCent (f `Mu.percent` r) ++
+                                      "\nGaveups: " ++ show g ++ Mu.showPerCent (g `Mu.percent` r)
+                        logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ Mu.printlnList errorFiles
+                                ++ "\n\nLoading error messages:\n " ++ Mu.printlnList errorCases
+                                ++ "\n\nSUCCESSES:\n " ++ Mu.printlnList successCases
+                                ++ "\n\nFAILURE:\n " ++ Mu.printlnList failureCases
+                                ++ "\n\nGAVEUPs:\n " ++ Mu.printlnList gaveUpCases ++ "\n"
+    multipleSummary = multipleCheckSummary Qc.isSuccess
 
 -- we assume that checking each prop results in the same number of errorCases and executedCases
 multipleCheckSummary :: Show a => (a -> Bool) -> [[InterpreterOutput a]] -> (String, String)
@@ -108,32 +108,32 @@ multipleCheckSummary isSuccessFunction results
                       countErrors = countMutants - length executedCases
                       terminalMsg = "\nTotal number of mutants: " ++ show countMutants
                                  ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive 
-                                 ++ showPerCent (countAlive `percent` countMutants) ++ "\n"
-                                 ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ showPerCent (countErrors `percent` countMutants) ++ "\n"
-                      logMsg = terminalMsg ++ "\nDetails:\n\n" ++ printlnList allSuccesses ++ "\n"
+                                 ++ Mu.showPerCent (countAlive `Mu.percent` countMutants) ++ "\n"
+                                 ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ Mu.showPerCent (countErrors `Mu.percent` countMutants) ++ "\n"
+                      logMsg = terminalMsg ++ "\nDetails:\n\n" ++ Mu.printlnList allSuccesses ++ "\n"
 
 -- Interpreter Functionalities
-runCodeOnMutants mutantFiles topModule code = sequence . map runInterpreter $ map (\mf -> runCodeOnMutant mf topModule code) mutantFiles
+runCodeOnMutants mutantFiles topModule code = sequence . map I.runInterpreter $ map (\mf -> runCodeOnMutant mf topModule code) mutantFiles
 
 runCodeOnMutant fileName topModule code = do
-                loadModules [fileName]
-                setTopLevelModules [topModule]
-                setImportsQ [("Prelude", Nothing), ("Test.QuickCheck", Nothing), ("Test.HUnit", Nothing)]
-                result <- interpret code (as :: (Typeable a => IO a)) >>= liftIO
+                I.loadModules [fileName]
+                I.setTopLevelModules [topModule]
+                I.setImportsQ [("Prelude", Nothing), ("Test.QuickCheck", Nothing), ("Test.HUnit", Nothing)]
+                result <- I.interpret code (I.as :: (Typeable a => IO a)) >>= I.liftIO
                 return (fileName, result)
 
-say :: String -> Interpreter ()
-say = liftIO . putStrLn
+say :: String -> I.Interpreter ()
+say = I.liftIO . putStrLn
 
-printInterpreterError :: InterpreterError -> IO ()
+printInterpreterError :: I.InterpreterError -> IO ()
 printInterpreterError e = putStrLn $ "Error: " ++ (show e)
 
-isFailure :: Result -> Bool
-isFailure Failure{} = True
+isFailure :: Qc.Result -> Bool
+isFailure Qc.Failure{} = True
 isFailure _         = False
 
-isGaveUp :: Result -> Bool
-isGaveUp GaveUp{} = True
+isGaveUp :: Qc.Result -> Bool
+isGaveUp Qc.GaveUp{} = True
 isGaveUp _        = False
 
 -- Examples
