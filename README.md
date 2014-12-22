@@ -19,3 +19,13 @@ cabal install hint
 
 *Main> checkTestSuiteOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./test.log"
 ```
+
+With Cabal Sandbox:
+```
+cd mucheck
+cabal sandbox init
+cabal install --only-dependencies
+cabal configure --flags="--enable-tests"
+cabal build
+cabal repl
+```
