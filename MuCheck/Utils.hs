@@ -1,28 +1,20 @@
 {-# LANGUAGE RankNTypes, NoMonomorphismRestriction #-}
 
-module MuCheck.Utils ( genFileNames
-                     , genFileNamesWith
-                     , selectMany
+module MuCheck.Utils ( selectMany
                      , selectOne
                      , relevantOps
-                     , choose
                      , once
                      , once'
                      , selectIntOps
                      , selectIfElseBoolNegOps
-                     , selectGuardedBoolNegOps
-                     , printStringList
-                     , printlnList
-                     , showPerCent
-                     , percent) where
+                     , selectGuardedBoolNegOps) where
 
-import Data.List(nub, intersperse)
+import Data.List(nub)
 import Data.Generics (Data, Typeable, GenericM, gmapMo, everything, mkQ, mkMp)
 import Language.Haskell.Exts (Literal(Int), Exp(App, Var, If), QName(UnQual), Name(Ident) , Stmt(Qualifier))
 import qualified Language.Haskell.Exts.Syntax as Syntax
 import MuCheck.MuOp
 import Control.Monad (MonadPlus, mplus)
-
 
 -- SYB functions
 -- apply a mutating function on a piece of code once at a time
@@ -88,31 +80,4 @@ selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
                                     negateGuardedRhs (Syntax.GuardedRhs srcLoc stmts exp)
                                         = let stmtss = once (mkMp boolNegate) stmts
                                           in [Syntax.GuardedRhs srcLoc s exp | s <- stmtss]
-
--- generating mutant files names
--- e.g.: "Quicksort.hs" ==> "Quicksort_1.hs", "Quicksort_2.hs", etc.
-genFileNames = genFileNamesWith 1
-
-genFileNamesWith :: Int -> String -> [String]
-genFileNamesWith fstIndex s =  zipWith (++) prefix2 (repeat ext)
-    where (name, ext) = splitAt (length s - 3) s
-          prefix1 = zipWith (++) (repeat name) (repeat "_")
-          prefix2 = zipWith (++) prefix1 $ map show [fstIndex..]
-
--- chooose [1,2,3,4,5] 4
---  = [[2,3,4,5],[1,3,4,5],[1,2,4,5],[1,2,3,5],[1,2,3,4]]
-choose :: [b] -> Int -> [[b]]
-_      `choose` 0       = [[]]
-[]     `choose` _       =  []
-(x:xs) `choose` k       =  (x:) `fmap` (xs `choose` (k-1)) ++ xs `choose` k
-
--- utils for interpreter
-showPerCent x = " (" ++ show x ++ "%)"
-n `percent` t = 100 * n `div` t
-
-printStringList :: [String] -> String
-printStringList = concat . intersperse "\n"
-
-printlnList :: Show a => [a] -> String
-printlnList =  printStringList . map show
 

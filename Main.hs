@@ -6,12 +6,9 @@ import MuCheck.StdArgs
 import MuCheck.Interpreter
 import MuCheck.Mutation
 import MuCheck.Operators
-import MuCheck.Utils
-
-
+import MuCheck.Utils.Common
 
 extraOps = Var . UnQual . Ident <$> ["qsort", "id", "reverse"]
-
 
 -- NOTE: On QuickCheck.hs's mutants, it takes ~3-4 minutes to test 323 mutants on three properies.
 -- We need mutant files to have been already generated. see README

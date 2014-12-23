@@ -11,6 +11,7 @@ import Data.List(elemIndex,nub,(\\), intersperse, permutations)
 import Control.Monad.State
 import MuCheck.MuOp
 import MuCheck.Utils
+import MuCheck.Utils.Common
 import MuCheck.Operators
 import MuCheck.StdArgs
 
@@ -41,7 +42,7 @@ genMutantsWith args funcname filename  = do
 
     if null ops && null swapOps
         then return () --  putStrLn "No applicable operator exists!"
-        else sequence_ $ zipWith writeFile (genFileNamesWith 1 filename) $ map prettyPrint programMutants
+        else sequence_ $ zipWith writeFile (genFileNames filename) $ map prettyPrint programMutants
     return $ length programMutants
 
 -- Mutating a function's code using a bunch of mutation operators

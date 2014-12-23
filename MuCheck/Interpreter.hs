@@ -6,7 +6,7 @@ import Control.Monad.Trans ( liftIO )
 import qualified Test.QuickCheck.Test as Qc
 import qualified Test.HUnit as HUnit
 import Data.Typeable
-import qualified MuCheck.Utils as Mu
+import qualified MuCheck.Utils.Print as Mu
 import Data.Either
 import Data.List((\\), groupBy, sortBy)
 import Data.Time.Clock
