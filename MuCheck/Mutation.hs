@@ -21,24 +21,28 @@ genMutantsFstIdx fstIdx = genMutantsWithFstIdx fstIdx stdArgs
 
 genMutantsWithFstIdx :: Int -> StdArgs -> String -> FilePath -> IO Int
 genMutantsWithFstIdx fstIdx args funcname filename  = do
-                ast <- getASTFromFile filename
-                let decls = getDecls ast
-                    func = fromJust $ selectOne (isFunctionD funcname) ast
-                    valOps = if (doMutateValues args) then (selectIntOps func) else []
-                    ifElseNegOps = if (doNegateIfElse args) then (selectIfElseBoolNegOps func) else []
-                    guardedBoolNegOps = if (doNegateGuards args) then (selectGuardedBoolNegOps func) else []
-                    swapOps = if (doMutatePatternMatches args) then (permMatches func ++ removeOnePMatch func) else []
-                    ops = relevantOps func (muOps args ++ valOps)
-                    patternMatchMutants = mutatesN swapOps func 1
-                    ifElseNegMutants = mutatesN ifElseNegOps func 1
-                    guardedNegMutants = mutatesN guardedBoolNegOps func 1
-                    operatorMutants = if (genMode args == FirstOrderOnly) then (mutatesN ops func 1) else (mutates ops func)
-                    allMutants = take (maxNumMutants args) $ nub $ patternMatchMutants ++ ifElseNegMutants ++ guardedNegMutants ++ operatorMutants
-                    programMutants =  map (flip putDecls ast) $ allMutants >>= return . \f -> replaceFst func f decls
-                if null ops && null swapOps
-                    then return () --  putStrLn "No applicable operator exists!"
-                    else sequence_ $ zipWith writeFile (genFileNamesWith fstIdx filename) $ map prettyPrint programMutants
-                return $ length programMutants
+    ast <- getASTFromFile filename
+    let decls = getDecls ast
+        func = fromJust $ selectOne (isFunctionD funcname) ast
+
+        valOps = if (doMutateValues args) then (selectIntOps func) else []
+        ifElseNegOps = if (doNegateIfElse args) then (selectIfElseBoolNegOps func) else []
+        guardedBoolNegOps = if (doNegateGuards args) then (selectGuardedBoolNegOps func) else []
+        swapOps = if (doMutatePatternMatches args) then (permMatches func ++ removeOnePMatch func) else []
+        ops = relevantOps func (muOps args ++ valOps)
+
+        patternMatchMutants = mutatesN swapOps func 1
+        ifElseNegMutants = mutatesN ifElseNegOps func 1
+        guardedNegMutants = mutatesN guardedBoolNegOps func 1
+        operatorMutants = if (genMode args == FirstOrderOnly) then (mutatesN ops func 1) else (mutates ops func)
+
+        allMutants = take (maxNumMutants args) $ nub $ patternMatchMutants ++ ifElseNegMutants ++ guardedNegMutants ++ operatorMutants
+        programMutants =  map (flip putDecls ast) $ allMutants >>= return . \f -> replaceFst func f decls
+
+    if null ops && null swapOps
+        then return () --  putStrLn "No applicable operator exists!"
+        else sequence_ $ zipWith writeFile (genFileNamesWith fstIdx filename) $ map prettyPrint programMutants
+    return $ length programMutants
 
 -- Mutating a function's code using a bunch of mutation operators
 -- NOTE: In all the three mutate functions, we assume working
