@@ -1,5 +1,4 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
-
 module MuCheck.Interpreter where
 
 import qualified Language.Haskell.Interpreter as I
@@ -24,17 +23,17 @@ checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit
 checkTestSuiteOnMutants = mutantCheckSummary
 
 -- main entry point
-mutantCheckSummary mutantFiles topModule evalSrc logFile  = do
-        results <- sequence $ map (runCodeOnMutants mutantFiles topModule) evalSrc
+mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
+        results <- sequence $ map (runCodeOnMutants mutantFiles topModule) evalSrcLst
         let singleTestSummaries = map (singleSummary mutantFiles) results
             terminalSummary = fst $ multipleSummary results
             logSummary = snd $ multipleSummary results
-            evalSrc' = zipWith (++) (repeat "\n=======================\n") evalSrc
+            evalSrcLst' = zipWith (++) (repeat "\n=======================\n") evalSrcLst
         -- print results to terminal
         putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ terminalSummary
-        putStrLn $ Mu.printStringList (zipWith (++) evalSrc' $ map fst singleTestSummaries)
+        putStrLn $ Mu.printStringList (zipWith (++) evalSrcLst' $ map fst singleTestSummaries)
         -- print results to logfile
-        appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ Mu.printStringList (zipWith (++) evalSrc' $ map snd singleTestSummaries)
+        appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ Mu.printStringList (zipWith (++) evalSrcLst' $ map snd singleTestSummaries)
         putStr "\n[]===== END OF OVERALL RESULTS ====="
         -- hacky solution to avoid printing entire results to stdout and to give
         -- guidance to the type checker in picking specific Summarizable instances
@@ -123,15 +122,15 @@ multipleCheckSummary :: Show a => (a -> Bool) -> [[InterpreterOutput a]] -> (Str
 multipleCheckSummary isSuccessFunction results
     | (not . and) (map ((==countMutants) . length) results ++ map ((==countExecutedCases) . length) executedCases) = error "Output lengths differ for some properties."
     | otherwise = (terminalMsg, logMsg)
-                where executedCases = groupBy (\x y -> fst x == fst y) . sortBy (\x y -> fst x `compare` fst y) . rights $ concat results
-                      allSuccesses = [rs | rs <- executedCases, length rs == length results, and (map (isSuccessFunction . snd) rs)]
-                      countAlive = length allSuccesses
-                      countMutants = length . head $ results
-                      countExecutedCases = length . head $ executedCases
-                      countErrors = countMutants - length executedCases
-                      terminalMsg = "\nTotal number of mutants: " ++ show countMutants
-                                 ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive
-                                 ++ Mu.showPerCent (countAlive `Mu.percent` countMutants) ++ "\n"
-                                 ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ Mu.showPerCent (countErrors `Mu.percent` countMutants) ++ "\n"
-                      logMsg = terminalMsg ++ "\nDetails:\n\n" ++ Mu.printlnList allSuccesses ++ "\n"
+   where executedCases = groupBy (\x y -> fst x == fst y) . sortBy (\x y -> fst x `compare` fst y) . rights $ concat results
+         allSuccesses = [rs | rs <- executedCases, length rs == length results, and (map (isSuccessFunction . snd) rs)]
+         countAlive = length allSuccesses
+         countMutants = length . head $ results
+         countExecutedCases = length . head $ executedCases
+         countErrors = countMutants - length executedCases
+         terminalMsg = "\nTotal number of mutants: " ++ show countMutants
+                    ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive
+                    ++ Mu.showPerCent (countAlive `Mu.percent` countMutants) ++ "\n"
+                    ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ Mu.showPerCent (countErrors `Mu.percent` countMutants) ++ "\n"
+         logMsg = terminalMsg ++ "\nDetails:\n\n" ++ Mu.printlnList allSuccesses ++ "\n"
 
