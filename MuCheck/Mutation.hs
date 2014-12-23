@@ -4,16 +4,18 @@
 module MuCheck.Mutation where
 
 import Language.Haskell.Exts
+import qualified Language.Haskell.Exts.Syntax as Syntax
 import Language.Haskell.Exts.Pretty
 import Data.Maybe
 import Data.Generics
 import Data.List(elemIndex,nub,(\\), intersperse, permutations)
 import Control.Monad.State
 import MuCheck.MuOp
-import MuCheck.Utils
+import MuCheck.Utils.Syb
 import MuCheck.Utils.Common
 import MuCheck.Operators
 import MuCheck.StdArgs
+
 
 import Debug.Trace
 debug = flip trace
@@ -120,6 +122,38 @@ putDecls decls (Module a b c d e f _) = Module a b c d e f decls
 getName :: Module -> String
 getName (Module _ (ModuleName name) _ _ _ _ _) = name
 
-----------------------------------------
-------------- EXAMPLES -----------------
--- genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
+
+-- Define all operations on a value
+selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
+selectValOps p fs m = let vals = nub $ selectMany p m
+                      in concatMap (\x -> x ==>* map (\f -> f x) fs) vals
+
+selectValOps' :: (Data a, Eq a, Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> a -> [MuOp]
+selectValOps' p f m = let vals = selectMany p m
+                      in concatMap (\x -> x ==>* f x) vals
+
+selectIntOps :: (Data a, Eq a) => a -> [MuOp]
+selectIntOps = selectValOps isInt [\(Int i) -> Int (i + 1)
+                                 , \(Int i) -> Int (i - 1)
+                                 , \(Int i) -> if (abs i /= 1) then Int 0 else Int i
+                                 , \(Int i) -> if (abs (i-1) /= 1) then Int 1 else Int i]
+                    where isInt (Int _) = True
+                          isInt _       = False
+
+-- negating boolean in if/else statements
+selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
+selectIfElseBoolNegOps = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3]
+                            where isIf (If _ _ _) = True
+                                  isIf _          = False
+
+-- negating boolean in Guards
+selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
+selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
+                              where isGuardedRhs (Syntax.GuardedRhs _ _ _) = True
+                                    boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
+                                    boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
+                                    boolNegate x = [x]
+                                    negateGuardedRhs (Syntax.GuardedRhs srcLoc stmts exp)
+                                        = let stmtss = once (mkMp boolNegate) stmts
+                                          in [Syntax.GuardedRhs srcLoc s exp | s <- stmtss]
+
