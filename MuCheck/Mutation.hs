@@ -1,4 +1,5 @@
 {-# LANGUAGE ImpredicativeTypes #-}
+-- Mutation happens here.
 
 module MuCheck.Mutation where
 
@@ -81,11 +82,6 @@ parseModuleFromFile :: String -> Module
 parseModuleFromFile inp = fromParseResult $ parseFileContents inp
 
 getASTFromFile filename = readFile filename >>= return . parseModuleFromFile
-fileName = "TestSubjects/AVLTree.hs"
-k = getASTFromFile fileName
-n = k >>= return.getDecls >>= return . getFuncNames
-n1 = k >>= return.getDecls
-n2 = getModuleName fileName
 
 getModuleName :: String -> IO String
 getModuleName  fileName =  getASTFromFile fileName >>= return . getName

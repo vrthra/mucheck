@@ -42,7 +42,7 @@ mutantCheckSummary mutantFiles topModule evalSrc logFile  = do
 
 -- Interpreter Functionalities
 -- Examples
--- t = runI (runCodeOnMutant "Examples\\Quicksort.hs" "Quicksort" "quickCheckResult idEmp" "E:/logfile.txt")
+-- t = runInterpreter (runCodeOnMutant "Examples/Quicksort.hs" "Quicksort" "quickCheckResult idEmp")
 -- mytest = checkPropsOnMutants (take 200 $ genFileNames "Examples/Quicksort.hs") "Examples.Quicksort"
 --          ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"] "./logs.txt"
 runCodeOnMutants mutantFiles topModule code = sequence . map I.runInterpreter $ resmap
