@@ -1,7 +1,7 @@
 module MuCheck.Operators where
 
 import MuCheck.MuOp
-import Language.Haskell.Exts
+import Language.Haskell.Exts (Name(Symbol), Exp(Var), QName(UnQual), Name(Ident))
 
 -- all available operators
 allOps = concat [comparators, predNums, binAriths, arithLists]

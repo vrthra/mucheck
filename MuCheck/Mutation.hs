@@ -3,13 +3,15 @@
 
 module MuCheck.Mutation where
 
-import Language.Haskell.Exts
-import qualified Language.Haskell.Exts.Syntax as Syntax
-import Language.Haskell.Exts.Pretty
-import Data.Maybe
-import Data.Generics
-import Data.List(elemIndex,nub,(\\), intersperse, permutations)
-import Control.Monad.State
+import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
+        Stmt(Qualifier), Module(Module), ModuleName(..),
+        Name(Ident, Symbol), Decl(FunBind, PatBind), Match,
+        Pat(PVar), Match(Match), GuardedRhs(GuardedRhs), 
+        prettyPrint, fromParseResult, parseFileContents)
+import Data.Maybe (fromJust)
+import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp)
+import Data.List(nub,(\\), permutations)
+
 import MuCheck.MuOp
 import MuCheck.Utils.Syb
 import MuCheck.Utils.Common
@@ -56,8 +58,8 @@ mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
 -- the third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
 mutatesN ops m 1 = ops >>= \op -> mutate op m
-mutatesN ops m c = let ms = mutatesN ops m (c-1)
-                   in  ms >>= \m -> mutatesN ops m 1
+mutatesN ops m c = ms >>= \m -> mutatesN ops m 1
+  where ms = mutatesN ops m (c-1)
 
 -- given a function, generate all mutants after applying applying 
 -- op once (op might be applied at different places). E.g.:
@@ -100,8 +102,9 @@ getModuleName  fileName =  getASTFromFile fileName >>= return . getName
 -- in a list with a new value
 replaceFst :: Eq a => a -> a -> [a] -> [a]
 replaceFst _ _ [] = []
-replaceFst oldVal newVal (v:vs) | v == oldVal = newVal:vs
-                                | otherwise   = v:replaceFst oldVal newVal vs
+replaceFst oldVal newVal (v:vs)
+  | v == oldVal = newVal:vs
+  | otherwise   = v:replaceFst oldVal newVal vs
 
 getDecls :: Module -> [Decl]
 getDecls (Module _ _ _ _ _ _ decls) = decls
@@ -122,38 +125,35 @@ putDecls decls (Module a b c d e f _) = Module a b c d e f decls
 getName :: Module -> String
 getName (Module _ (ModuleName name) _ _ _ _ _) = name
 
-
 -- Define all operations on a value
 selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
-selectValOps p fs m = let vals = nub $ selectMany p m
-                      in concatMap (\x -> x ==>* map (\f -> f x) fs) vals
+selectValOps p fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
+  where vals = nub $ selectMany p m
 
 selectValOps' :: (Data a, Eq a, Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> a -> [MuOp]
-selectValOps' p f m = let vals = selectMany p m
-                      in concatMap (\x -> x ==>* f x) vals
+selectValOps' p f m = concatMap (\x -> x ==>* f x) vals
+  where vals = selectMany p m
 
 selectIntOps :: (Data a, Eq a) => a -> [MuOp]
 selectIntOps = selectValOps isInt [\(Int i) -> Int (i + 1)
                                  , \(Int i) -> Int (i - 1)
                                  , \(Int i) -> if (abs i /= 1) then Int 0 else Int i
                                  , \(Int i) -> if (abs (i-1) /= 1) then Int 1 else Int i]
-                    where isInt (Int _) = True
-                          isInt _       = False
+  where isInt (Int _) = True
+        isInt _       = False
 
 -- negating boolean in if/else statements
 selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectIfElseBoolNegOps = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3]
-                            where isIf (If _ _ _) = True
-                                  isIf _          = False
+  where isIf (If _ _ _) = True
+        isIf _          = False
 
 -- negating boolean in Guards
 selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
-                              where isGuardedRhs (Syntax.GuardedRhs _ _ _) = True
-                                    boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
-                                    boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
-                                    boolNegate x = [x]
-                                    negateGuardedRhs (Syntax.GuardedRhs srcLoc stmts exp)
-                                        = let stmtss = once (mkMp boolNegate) stmts
-                                          in [Syntax.GuardedRhs srcLoc s exp | s <- stmtss]
+  where isGuardedRhs (GuardedRhs _ _ _) = True
+        boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
+        boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
+        boolNegate x = [x]
+        negateGuardedRhs (GuardedRhs srcLoc stmts exp) = [GuardedRhs srcLoc s exp | s <- once (mkMp boolNegate) stmts]
 
