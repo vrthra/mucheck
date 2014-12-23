@@ -24,15 +24,15 @@ genMutantsWithFstIdx fstIdx args funcname filename  = do
                 ast <- getASTFromFile filename
                 let decls = getDecls ast
                     func = fromJust $ selectOne (isFunctionD funcname) ast
-                    valOps = ifElse (doMutateValues args) (selectIntOps func) []
-                    ifElseNegOps = ifElse (doNegateIfElse args) (selectIfElseBoolNegOps func) []
-                    guardedBoolNegOps = ifElse (doNegateGuards args) (selectGuardedBoolNegOps func) []
-                    swapOps = ifElse (doMutatePatternMatches args) (permMatches func ++ removeOnePMatch func) []
+                    valOps = if (doMutateValues args) then (selectIntOps func) else []
+                    ifElseNegOps = if (doNegateIfElse args) then (selectIfElseBoolNegOps func) else []
+                    guardedBoolNegOps = if (doNegateGuards args) then (selectGuardedBoolNegOps func) else []
+                    swapOps = if (doMutatePatternMatches args) then (permMatches func ++ removeOnePMatch func) else []
                     ops = relevantOps func (muOps args ++ valOps)
                     patternMatchMutants = mutatesN swapOps func 1
                     ifElseNegMutants = mutatesN ifElseNegOps func 1
                     guardedNegMutants = mutatesN guardedBoolNegOps func 1
-                    operatorMutants = ifElse (genMode args == FirstOrderOnly) (mutatesN ops func 1) (mutates ops func)
+                    operatorMutants = if (genMode args == FirstOrderOnly) then (mutatesN ops func 1) else (mutates ops func)
                     allMutants = take (maxNumMutants args) $ nub $ patternMatchMutants ++ ifElseNegMutants ++ guardedNegMutants ++ operatorMutants
                     programMutants =  map (flip putDecls ast) $ allMutants >>= return . \f -> replaceFst func f decls
                 if null ops && null swapOps
@@ -76,6 +76,9 @@ permMatches _  = []
 removeOnePMatch :: Decl -> [MuOp]
 removeOnePMatch d@(FunBind ms) = d ==>* map FunBind (removeOneElem ms \\ [ms])
 removeOnePMatch _  = []
+
+removeOneElem :: Eq t => [t] -> [[t]]
+removeOneElem l = choose l (length l - 1)
 
 -- AST/module-related operations
 -- String is the content of the file

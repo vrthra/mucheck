@@ -5,14 +5,12 @@ module MuCheck.Utils ( genFileNames
                      , selectMany
                      , selectOne
                      , relevantOps
-                     , relevantOp
+                     , choose
                      , once
                      , once'
                      , selectIntOps
-                     , ifElse
                      , selectIfElseBoolNegOps
                      , selectGuardedBoolNegOps
-                     , removeOneElem
                      , printStringList
                      , printlnList
                      , showPerCent
@@ -52,10 +50,9 @@ p `contains` c = not . null $ selectMany (\c' -> c == c') p
 -- selecting all relevant ops
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
 relevantOps m = filter (relevantOp m)
-
--- check if an operator can be applied to a program
-relevantOp :: (Data a, Eq a) => a -> MuOp -> Bool
-relevantOp m op = once (mkMp' op) m /= Nothing
+  -- check if an operator can be applied to a program
+  where relevantOp :: (Data a, Eq a) => a -> MuOp -> Bool
+        relevantOp m op = once (mkMp' op) m /= Nothing
 
 -- Define all operations on a value
 selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
@@ -91,8 +88,6 @@ selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
                                         = let stmtss = once (mkMp boolNegate) stmts
                                           in [GuardedRhs srcLoc s exp | s <- stmtss]
 
-ifElse a b c = if a then b else c
-
 -- generating mutant files names
 -- e.g.: "Quicksort.hs" ==> "Quicksort_1.hs", "Quicksort_2.hs", etc.
 genFileNames = genFileNamesWith 1
@@ -103,13 +98,12 @@ genFileNamesWith fstIndex s =  zipWith (++) prefix2 (repeat ext)
           prefix1 = zipWith (++) (repeat name) (repeat "_")
           prefix2 = zipWith (++) prefix1 $ map show [fstIndex..]
 
--- undeterministically remove one element from a list
-removeOneElem = filter (/= []) . removeOneElemHelper
-
-removeOneElemHelper :: [a] -> [[a]]
-removeOneElemHelper [] = []
-removeOneElemHelper [_] = [[]]
-removeOneElemHelper (x:xs) = xs : (map (x:) $ removeOneElemHelper xs)
+-- chooose [1,2,3,4,5] 4
+--  = [[2,3,4,5],[1,3,4,5],[1,2,4,5],[1,2,3,5],[1,2,3,4]]
+choose :: [b] -> Int -> [[b]]
+_      `choose` 0       = [[]]
+[]     `choose` _       =  []
+(x:xs) `choose` k       =  (x:) `fmap` (xs `choose` (k-1)) ++ xs `choose` k
 
 -- utils for interpreter
 showPerCent x = " (" ++ show x ++ "%)"

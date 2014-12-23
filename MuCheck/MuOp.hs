@@ -7,9 +7,9 @@ module MuCheck.MuOp (MuOp
           , Mutable
           ) where
 
-import Language.Haskell.Exts
+import Language.Haskell.Exts (Name, QName, QOp, Exp, Literal, GuardedRhs, Decl)
 import qualified Data.Generics as G
-import Control.Monad
+import Control.Monad (MonadPlus, mzero)
 
 data MuOp = N  (Name, Name)
           | QN (QName, QName)
