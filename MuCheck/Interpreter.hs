@@ -3,7 +3,7 @@
 module MuCheck.Interpreter where
 
 import qualified Language.Haskell.Interpreter as I
-import Control.Monad
+import Control.Monad.Trans ( liftIO )
 import qualified Test.QuickCheck.Test as Qc
 import qualified Test.HUnit as HUnit
 import Data.Typeable
@@ -42,18 +42,18 @@ mutantCheckSummary mutantFiles topModule evalSrc logFile  = do
 
 -- Interpreter Functionalities
 -- Examples
--- t = runInterpreter (runCodeOnMutant "Examples/Quicksort.hs" "Quicksort" "quickCheckResult idEmp")
--- mytest = checkPropsOnMutants (take 200 $ genFileNames "Examples/Quicksort.hs") "Examples.Quicksort"
---          ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"] "./logs.txt"
-runCodeOnMutants mutantFiles topModule code = sequence . map I.runInterpreter $ resmap
-  where resmap =  map (\mf -> runCodeOnMutant mf topModule code) mutantFiles
+-- t = runInterpreter (evalMethod "Examples/Quicksort.hs" "Quicksort" "quickCheckResult idEmp")
+runCodeOnMutants mutantFiles topModule evalStr = sequence $ map (evalMyStr evalStr) mutantFiles
+  where evalMyStr evalStr file = I.runInterpreter (evalMethod file topModule evalStr)
 
-runCodeOnMutant :: (I.MonadInterpreter m, Typeable t) => String -> String -> String -> m (String, t)
-runCodeOnMutant fileName topModule code = do
+-- Given the filename, modulename, method to evaluate, evaluate, and return
+-- result as a pair.
+evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> String -> m (String, t)
+evalMethod fileName topModule evalStr = do
                 I.loadModules [fileName]
                 I.setTopLevelModules [topModule]
-                I.setImportsQ [("Prelude", Nothing), ("Test.QuickCheck", Nothing), ("Test.HUnit", Nothing)]
-                result <- I.interpret code (I.as :: (Typeable a => IO a)) >>= I.liftIO
+                I.setImports ["Prelude", "Test.QuickCheck", "Test.HUnit"]
+                result <- I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
                 return (fileName, result)
 
 
