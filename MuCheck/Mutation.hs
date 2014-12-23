@@ -14,13 +14,13 @@ import MuCheck.Utils
 import MuCheck.Operators
 import MuCheck.StdArgs
 
+import Debug.Trace
+debug = flip trace
 -- entry point.
 genMutants = genMutantsWith stdArgs
-genMutantsWith = genMutantsWithFstIdx 1
-genMutantsFstIdx fstIdx = genMutantsWithFstIdx fstIdx stdArgs
 
-genMutantsWithFstIdx :: Int -> StdArgs -> String -> FilePath -> IO Int
-genMutantsWithFstIdx fstIdx args funcname filename  = do
+genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
+genMutantsWith args funcname filename  = do
     ast <- getASTFromFile filename
     let decls = getDecls ast
         func = fromJust $ selectOne (isFunctionD funcname) ast
@@ -37,11 +37,11 @@ genMutantsWithFstIdx fstIdx args funcname filename  = do
         operatorMutants = if (genMode args == FirstOrderOnly) then (mutatesN ops func 1) else (mutates ops func)
 
         allMutants = take (maxNumMutants args) $ nub $ patternMatchMutants ++ ifElseNegMutants ++ guardedNegMutants ++ operatorMutants
-        programMutants =  map (flip putDecls ast) $ allMutants >>= return . \f -> replaceFst func f decls
+        programMutants =  map (flip putDecls ast) (allMutants >>= return . \f -> replaceFst func f decls)
 
     if null ops && null swapOps
         then return () --  putStrLn "No applicable operator exists!"
-        else sequence_ $ zipWith writeFile (genFileNamesWith fstIdx filename) $ map prettyPrint programMutants
+        else sequence_ $ zipWith writeFile (genFileNamesWith 1 filename) $ map prettyPrint programMutants
     return $ length programMutants
 
 -- Mutating a function's code using a bunch of mutation operators

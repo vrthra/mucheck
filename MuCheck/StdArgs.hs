@@ -14,6 +14,7 @@ data StdArgs = StdArgs {muOps :: [MuOp]
                       , doNegateGuards :: Bool
                       , maxNumMutants :: Int
                       , genMode :: GenerationMode }
+                      deriving Show
 
 stdArgs :: StdArgs
 stdArgs = StdArgs {muOps = allOps
@@ -23,3 +24,4 @@ stdArgs = StdArgs {muOps = allOps
                  , doNegateGuards = True
                  , maxNumMutants = 300
                  , genMode = FirstOrderOnly }
+

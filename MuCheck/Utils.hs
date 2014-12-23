@@ -17,10 +17,11 @@ module MuCheck.Utils ( genFileNames
                      , percent) where
 
 import Data.List(nub, intersperse)
-import Data.Generics
-import Language.Haskell.Exts
+import Data.Generics (Data, Typeable, GenericM, gmapMo, everything, mkQ, mkMp)
+import Language.Haskell.Exts (Literal(Int), Exp(App, Var, If), QName(UnQual), Name(Ident) , Stmt(Qualifier))
+import qualified Language.Haskell.Exts.Syntax as Syntax
 import MuCheck.MuOp
-import Control.Monad
+import Control.Monad (MonadPlus, mplus)
 
 
 -- SYB functions
@@ -80,13 +81,13 @@ selectIfElseBoolNegOps = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQu
 -- negating boolean in Guards
 selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
-                              where isGuardedRhs (GuardedRhs _ _ _) = True
+                              where isGuardedRhs (Syntax.GuardedRhs _ _ _) = True
                                     boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
                                     boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
                                     boolNegate x = [x]
-                                    negateGuardedRhs (GuardedRhs srcLoc stmts exp)
+                                    negateGuardedRhs (Syntax.GuardedRhs srcLoc stmts exp)
                                         = let stmtss = once (mkMp boolNegate) stmts
-                                          in [GuardedRhs srcLoc s exp | s <- stmtss]
+                                          in [Syntax.GuardedRhs srcLoc s exp | s <- stmtss]
 
 -- generating mutant files names
 -- e.g.: "Quicksort.hs" ==> "Quicksort_1.hs", "Quicksort_2.hs", etc.
