@@ -14,6 +14,7 @@ import MuCheck.Utils
 import MuCheck.Operators
 import MuCheck.StdArgs
 
+-- entry point.
 genMutants = genMutantsWith stdArgs
 genMutantsWith = genMutantsWithFstIdx 1
 genMutantsFstIdx fstIdx = genMutantsWithFstIdx fstIdx stdArgs
@@ -113,5 +114,4 @@ getName (Module _ (ModuleName name) _ _ _ _ _) = name
 
 ----------------------------------------
 ------------- EXAMPLES -----------------
-
-test funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
+-- genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename

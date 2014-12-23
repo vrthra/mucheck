@@ -20,3 +20,4 @@ mytest = checkPropsOnMutants (take 13 mutantFiles) topModule  evalSrc logFile
         evalSrc = ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"]
         logFile = "./logs.txt"
 
+genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
