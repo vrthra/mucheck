@@ -10,7 +10,7 @@ import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
         prettyPrint, fromParseResult, parseFileContents)
 import Data.Maybe (fromJust)
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp)
-import Data.List(nub,(\\), permutations)
+import Data.List(nub, (\\), permutations)
 
 import MuCheck.MuOp
 import MuCheck.Utils.Syb
@@ -27,27 +27,29 @@ genMutants = genMutantsWith stdArgs
 genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
 genMutantsWith args funcname filename  = do
     ast <- getASTFromFile filename
-    let decls = getDecls ast
-        func = fromJust $ selectOne (isFunctionD funcname) ast
-
-        valOps = if (doMutateValues args) then (selectIntOps func) else []
-        ifElseNegOps = if (doNegateIfElse args) then (selectIfElseBoolNegOps func) else []
-        guardedBoolNegOps = if (doNegateGuards args) then (selectGuardedBoolNegOps func) else []
-        swapOps = if (doMutatePatternMatches args) then (permMatches func ++ removeOnePMatch func) else []
-        ops = relevantOps func (muOps args ++ valOps)
-
-        patternMatchMutants = mutatesN swapOps func 1
-        ifElseNegMutants = mutatesN ifElseNegOps func 1
-        guardedNegMutants = mutatesN guardedBoolNegOps func 1
-        operatorMutants = if (genMode args == FirstOrderOnly) then (mutatesN ops func 1) else (mutates ops func)
-
-        allMutants = take (maxNumMutants args) $ nub $ patternMatchMutants ++ ifElseNegMutants ++ guardedNegMutants ++ operatorMutants
-        programMutants =  map (flip putDecls ast) (allMutants >>= return . \f -> replaceFst func f decls)
-
-    if null ops && null swapOps
+    if null (ops (func funcname ast)) && null (swapOps (func funcname ast))
         then return () --  putStrLn "No applicable operator exists!"
-        else sequence_ $ zipWith writeFile (genFileNames filename) $ map prettyPrint programMutants
-    return $ length programMutants
+        else sequence_ $ zipWith writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
+    return $ length (programMutants ast)
+  where valOps f = if (doMutateValues args) then (selectIntOps f) else []
+        ifElseNegOps f = if (doNegateIfElse args) then (selectIfElseBoolNegOps f) else []
+        guardedBoolNegOps f = if (doNegateGuards args) then (selectGuardedBoolNegOps f) else []
+        swapOps f = if (doMutatePatternMatches args) then (permMatches f ++ removeOnePMatch f) else []
+        ops f = relevantOps f (muOps args ++ valOps f)
+
+        patternMatchMutants f = mutatesN (swapOps f) f 1
+        ifElseNegMutants f = mutatesN (ifElseNegOps f) f 1
+        guardedNegMutants f = mutatesN (guardedBoolNegOps f) f 1
+        operatorMutants f = if (genMode args == FirstOrderOnly) then (mutatesN (ops f) f 1) else (mutates (ops f) f)
+
+        allMutants f = nub $ patternMatchMutants f ++ ifElseNegMutants f ++ guardedNegMutants f ++ operatorMutants f
+
+        func fname ast = fromJust $ selectOne (isFunctionD fname) ast
+        programMutants ast =  map (flip putDecls ast) $ mylst ast
+        mylst ast = do x <- take (maxNumMutants args) $ allMutants (func funcname ast)
+                       return $ myfn ast x
+        myfn ast fn = (replace (func funcname ast,fn) (getDecls ast))
+        getASTFromFile filename = readFile filename >>= return . parseModuleFromFile
 
 -- Mutating a function's code using a bunch of mutation operators
 -- NOTE: In all the three mutate functions, we assume working
@@ -93,18 +95,6 @@ removeOneElem l = choose l (length l - 1)
 -- String is the content of the file
 parseModuleFromFile :: String -> Module
 parseModuleFromFile inp = fromParseResult $ parseFileContents inp
-
-getASTFromFile filename = readFile filename >>= return . parseModuleFromFile
-
-getModuleName :: String -> IO String
-getModuleName  fileName =  getASTFromFile fileName >>= return . getName
--- replacing the first instance of an element 
--- in a list with a new value
-replaceFst :: Eq a => a -> a -> [a] -> [a]
-replaceFst _ _ [] = []
-replaceFst oldVal newVal (v:vs)
-  | v == oldVal = newVal:vs
-  | otherwise   = v:replaceFst oldVal newVal vs
 
 getDecls :: Module -> [Decl]
 getDecls (Module _ _ _ _ _ _ decls) = decls
