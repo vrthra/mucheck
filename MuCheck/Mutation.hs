@@ -117,30 +117,31 @@ getName (Module _ (ModuleName name) _ _ _ _ _) = name
 
 -- Define all operations on a value
 selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
-selectValOps p fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
-  where vals = nub $ selectMany p m
+selectValOps pred fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
+  where vals = nub $ selectMany pred m
 
 selectValOps' :: (Data a, Eq a, Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> a -> [MuOp]
-selectValOps' p f m = concatMap (\x -> x ==>* f x) vals
-  where vals = selectMany p m
+selectValOps' pred f m = concatMap (\x -> x ==>* f x) vals
+  where vals = selectMany pred m
 
 selectIntOps :: (Data a, Eq a) => a -> [MuOp]
-selectIntOps = selectValOps isInt [\(Int i) -> Int (i + 1)
-                                 , \(Int i) -> Int (i - 1)
-                                 , \(Int i) -> if (abs i /= 1) then Int 0 else Int i
-                                 , \(Int i) -> if (abs (i-1) /= 1) then Int 1 else Int i]
+selectIntOps m = selectValOps isInt [
+      \(Int i) -> Int (i + 1),
+      \(Int i) -> Int (i - 1),
+      \(Int i) -> if (abs i /= 1) then Int 0 else Int i,
+      \(Int i) -> if (abs (i-1) /= 1) then Int 1 else Int i] m
   where isInt (Int _) = True
         isInt _       = False
 
 -- negating boolean in if/else statements
 selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
-selectIfElseBoolNegOps = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3]
+selectIfElseBoolNegOps m = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3] m
   where isIf (If _ _ _) = True
         isIf _          = False
 
 -- negating boolean in Guards
 selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
-selectGuardedBoolNegOps = selectValOps' isGuardedRhs negateGuardedRhs
+selectGuardedBoolNegOps m = selectValOps' isGuardedRhs negateGuardedRhs m
   where isGuardedRhs (GuardedRhs _ _ _) = True
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
         boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
