@@ -11,6 +11,7 @@ import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
 import Data.Maybe (fromJust)
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp)
 import Data.List(nub, (\\), permutations)
+import Control.Monad (liftM)
 
 import MuCheck.MuOp
 import MuCheck.Utils.Syb
@@ -27,13 +28,12 @@ debug = flip trace
 genMutants = genMutantsWith stdArgs
 
 genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
-genMutantsWith args funcname filename  = do
+genMutantsWith args funcname filename  = liftM length $ do
     ast <- getASTFromFile filename
     f <- return (func funcname ast)
-    if null (ops f) && null (swapOps f)
-        then return () --  putStrLn "No applicable operator exists!"
-        else sequence_ $ zipWith writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
-    return $ length (programMutants ast)
+    case (ops f ++ swapOps f) of
+      [] -> return [] --  putStrLn "No applicable operator exists!"
+      _  -> sequence $ zipWith writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
   where ops f = relevantOps f (muOps args ++ valOps f ++ ifElseNegOps f ++ guardedBoolNegOps f)
 
         valOps f = if (doMutateValues args) then (selectIntOps f) else []
