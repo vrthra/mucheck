@@ -26,15 +26,17 @@ checkTestSuiteOnMutants = mutantCheckSummary
 mutantCheckSummary :: Summarizable a => [String] -> String -> [String] -> FilePath -> IO [a]
 mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
-  let singleTestSummaries = map (singleSummary mutantFiles) results
+  let delim = "\n" ++ (take 25 (repeat '=')) ++ "\n"
+      singleTestSummaries = map (singleSummary mutantFiles) results
       (terminalSummary,logSummary) = multipleSummary results
-      evalSrcLst' = map ("\n=======================\n" ++) evalSrcLst
+      evalSrcLst' = map (delim ++) evalSrcLst
   -- print results to terminal
-  putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ terminalSummary
-  putStrLn $ Mu.showAS (zipWith (++) evalSrcLst' $ map fst singleTestSummaries)
+  putStrLn $ delim ++ "Overall Results:"
+  putStrLn terminalSummary
+  putStrLn $ Mu.showAS $ zipWith (++) evalSrcLst' $ map fst singleTestSummaries
+  putStr delim
   -- print results to logfile
   appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ Mu.showAS (zipWith (++) evalSrcLst' $ map snd singleTestSummaries)
-  putStr "\n[]===== END OF OVERALL RESULTS ====="
   -- hacky solution to avoid printing entire results to stdout and to give
   -- guidance to the type checker in picking specific Summarizable instances
   return $ tail [head $ (map snd) $ snd $ partitionEithers $ head results]
