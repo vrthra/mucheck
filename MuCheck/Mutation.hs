@@ -18,6 +18,8 @@ import MuCheck.Utils.Common
 import MuCheck.Operators
 import MuCheck.StdArgs
 
+import Debug.Hood.Observe
+
 
 import Debug.Trace
 debug = flip trace
@@ -27,22 +29,26 @@ genMutants = genMutantsWith stdArgs
 genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
 genMutantsWith args funcname filename  = do
     ast <- getASTFromFile filename
-    if null (ops (func funcname ast)) && null (swapOps (func funcname ast))
+    f <- return (func funcname ast)
+    if null (ops f) && null (swapOps f)
         then return () --  putStrLn "No applicable operator exists!"
         else sequence_ $ zipWith writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
     return $ length (programMutants ast)
-  where valOps f = if (doMutateValues args) then (selectIntOps f) else []
+  where ops f = relevantOps f (muOps args ++ valOps f ++ ifElseNegOps f ++ guardedBoolNegOps f)
+
+        valOps f = if (doMutateValues args) then (selectIntOps f) else []
         ifElseNegOps f = if (doNegateIfElse args) then (selectIfElseBoolNegOps f) else []
         guardedBoolNegOps f = if (doNegateGuards args) then (selectGuardedBoolNegOps f) else []
         swapOps f = if (doMutatePatternMatches args) then (permMatches f ++ removeOnePMatch f) else []
-        ops f = relevantOps f (muOps args ++ valOps f)
 
-        patternMatchMutants f = mutatesN (swapOps f) f 1
-        ifElseNegMutants f = mutatesN (ifElseNegOps f) f 1
-        guardedNegMutants f = mutatesN (guardedBoolNegOps f) f 1
-        operatorMutants f = if (genMode args == FirstOrderOnly) then (mutatesN (ops f) f 1) else (mutates (ops f) f)
+        stOrder = 1 -- first order
 
-        allMutants f = nub $ patternMatchMutants f ++ ifElseNegMutants f ++ guardedNegMutants f ++ operatorMutants f
+        patternMatchMutants f = mutatesN (swapOps f) f stOrder
+        ifElseNegMutants f = mutatesN (ifElseNegOps f) f stOrder
+        guardedNegMutants f = mutatesN (guardedBoolNegOps f) f stOrder
+        operatorMutants f = if (genMode args == FirstOrderOnly) then (mutatesN (ops f) f stOrder) else (mutates (ops f) f)
+
+        allMutants f = nub $ patternMatchMutants f ++ operatorMutants f
 
         func fname ast = fromJust $ selectOne (isFunctionD fname) ast
         programMutants ast =  map (flip putDecls ast) $ mylst ast
