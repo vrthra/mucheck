@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes #-}
 
 module MuCheck.Utils.Syb ( selectMany
                      , selectOne
@@ -8,6 +8,7 @@ module MuCheck.Utils.Syb ( selectMany
 
 import Data.Generics (Data, Typeable, GenericM, gmapMo, everything, mkQ, mkMp)
 import MuCheck.MuOp
+import MuCheck.Utils.Common
 import Control.Monad (MonadPlus, mplus)
 import Data.Maybe(fromMaybe, isJust)
 
@@ -26,14 +27,11 @@ selectMany f = everything (++) ([] `mkQ` keep f)
 
 -- special case of selectMany, which selects the first
 -- components satisfying a predicate
-selectOne f p = case selectMany f p of
-                    [] -> Nothing
-                    xs -> Just $ head xs
+selectOne f p = safeHead $ selectMany f p
 
 -- selecting all relevant ops
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
-relevantOps m = filter (relevantOp m)
+relevantOps m mlst = filter (relevantOp m) mlst
   -- check if an operator can be applied to a program
-  where relevantOp :: (Data a, Eq a) => a -> MuOp -> Bool
-        relevantOp m op = isJust $once (mkMp' op) m
+  where relevantOp m op = isJust $ once (mkMp' op) m
 

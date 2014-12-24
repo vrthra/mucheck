@@ -20,3 +20,7 @@ replace (o,n) lst = map replaceit lst
   where replaceit v
           | v == o = n
           | otherwise = v
+
+safeHead :: [a] -> Maybe a
+safeHead [] = Nothing
+safeHead (x:xs) = Just x

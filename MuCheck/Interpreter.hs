@@ -23,6 +23,7 @@ checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit
 checkTestSuiteOnMutants = mutantCheckSummary
 
 -- main entry point
+mutantCheckSummary :: Summarizable a => [String] -> String -> [String] -> FilePath -> IO [a]
 mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
   let singleTestSummaries = map (singleSummary mutantFiles) results
@@ -30,13 +31,13 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
       evalSrcLst' = map ("\n=======================\n" ++) evalSrcLst
   -- print results to terminal
   putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ terminalSummary
-  putStrLn $ Mu.printStringList (zipWith (++) evalSrcLst' $ map fst singleTestSummaries)
+  putStrLn $ Mu.showAS (zipWith (++) evalSrcLst' $ map fst singleTestSummaries)
   -- print results to logfile
-  appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ Mu.printStringList (zipWith (++) evalSrcLst' $ map snd singleTestSummaries)
+  appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ Mu.showAS (zipWith (++) evalSrcLst' $ map snd singleTestSummaries)
   putStr "\n[]===== END OF OVERALL RESULTS ====="
   -- hacky solution to avoid printing entire results to stdout and to give
   -- guidance to the type checker in picking specific Summarizable instances
-  return $ tail [head . map snd . snd . partitionEithers . head $ results]
+  return $ tail [head $ (map snd) $ snd $ partitionEithers $ head results]
 
 -- Interpreter Functionalities
 -- Examples
@@ -80,13 +81,13 @@ instance Summarizable HUnit.Counts where
                             "\nFailures (killed): " ++ show fl ++
                             "\nError while running: " ++ show re ++
                             "\nIncompletely tested (may include failures and running errors): " ++ show ftc
-              logMsg = terminalMsg ++ "\n\nDetails: \n\nLoading error files:\n" ++ Mu.printlnList loadingErrorFiles
-                       ++ "\n\nLoading error messages:\n" ++ Mu.printlnList loadingErrorCases
-                       ++ "\n\nSuccesses:\n" ++ Mu.printlnList successCases
-                       ++ "\n\nFailures:\n" ++ Mu.printlnList failuresCases
-                       ++ "\n\nError while running:\n" ++ Mu.printlnList runningErrorCases
+              logMsg = terminalMsg ++ "\n\nDetails: \n\nLoading error files:\n" ++ Mu.showA loadingErrorFiles
+                       ++ "\n\nLoading error messages:\n" ++ Mu.showA loadingErrorCases
+                       ++ "\n\nSuccesses:\n" ++ Mu.showA successCases
+                       ++ "\n\nFailures:\n" ++ Mu.showA failuresCases
+                       ++ "\n\nError while running:\n" ++ Mu.showA runningErrorCases
                        ++ "\n\nIncompletely tested (may include failures and running errors):\n"
-                       ++ Mu.printlnList failToFullyTryCases ++ "\n"
+                       ++ Mu.showA failToFullyTryCases ++ "\n"
     multipleSummary = multipleCheckSummary (\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0)
 
 instance Summarizable Qc.Result where
@@ -102,11 +103,11 @@ instance Summarizable Qc.Result where
                           "\nSuccesses (not killed): " ++ show s ++ Mu.showPerCent (s `Mu.percent` r) ++
                           "\nFailures (killed): " ++ show f ++ Mu.showPerCent (f `Mu.percent` r) ++
                           "\nGaveups: " ++ show g ++ Mu.showPerCent (g `Mu.percent` r)
-            logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ Mu.printlnList errorFiles
-                    ++ "\n\nLoading error messages:\n " ++ Mu.printlnList errorCases
-                    ++ "\n\nSUCCESSES:\n " ++ Mu.printlnList successCases
-                    ++ "\n\nFAILURE:\n " ++ Mu.printlnList failureCases
-                    ++ "\n\nGAVEUPs:\n " ++ Mu.printlnList gaveUpCases ++ "\n"
+            logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ Mu.showA errorFiles
+                    ++ "\n\nLoading error messages:\n " ++ Mu.showA errorCases
+                    ++ "\n\nSUCCESSES:\n " ++ Mu.showA successCases
+                    ++ "\n\nFAILURE:\n " ++ Mu.showA failureCases
+                    ++ "\n\nGAVEUPs:\n " ++ Mu.showA gaveUpCases ++ "\n"
             isFailure :: Qc.Result -> Bool
             isFailure Qc.Failure{} = True
             isFailure _         = False
@@ -129,7 +130,7 @@ multipleCheckSummary isSuccessFunction results
                     ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive
                     ++ Mu.showPerCent (countAlive `Mu.percent` countMutants) ++ "\n"
                     ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ Mu.showPerCent (countErrors `Mu.percent` countMutants) ++ "\n"
-         logMsg = terminalMsg ++ "\nDetails:\n\n" ++ Mu.printlnList allSuccesses ++ "\n"
+         logMsg = terminalMsg ++ "\nDetails:\n\n" ++ Mu.showA allSuccesses ++ "\n"
 
          checkLength results = and $ map ((==countMutants) . length) results ++ map ((==countExecutedCases) . length) executedCases
          countExecutedCases = length . head $ executedCases

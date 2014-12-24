@@ -6,9 +6,9 @@ import Data.List(intercalate)
 showPerCent x = " (" ++ show x ++ "%)"
 n `percent` t = 100 * n `div` t
 
-printStringList :: [String] -> String
-printStringList = intercalate "\n"
+showAS :: [String] -> String
+showAS = intercalate "\n"
 
-printlnList :: Show a => [a] -> String
-printlnList =  printStringList . map show
+showA :: Show a => [a] -> String
+showA =  showAS . map show
 
