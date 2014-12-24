@@ -24,10 +24,10 @@ checkTestSuiteOnMutants = mutantCheckSummary
 
 -- main entry point
 mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
-  results <- sequence $ map (runCodeOnMutants mutantFiles topModule) evalSrcLst
+  results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
   let singleTestSummaries = map (singleSummary mutantFiles) results
       (terminalSummary,logSummary) = multipleSummary results
-      evalSrcLst' = zipWith (++) (repeat "\n=======================\n") evalSrcLst
+      evalSrcLst' = map ("\n=======================\n" ++) evalSrcLst
   -- print results to terminal
   putStrLn $ "\n\n[]======== OVERALL RESULTS ========[]\n" ++ terminalSummary
   putStrLn $ Mu.printStringList (zipWith (++) evalSrcLst' $ map fst singleTestSummaries)
@@ -41,7 +41,7 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
 -- Interpreter Functionalities
 -- Examples
 -- t = runInterpreter (evalMethod "Examples/Quicksort.hs" "Quicksort" "quickCheckResult idEmp")
-runCodeOnMutants mutantFiles topModule evalStr = sequence $ map (evalMyStr evalStr) mutantFiles
+runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
   where evalMyStr evalStr file = I.runInterpreter (evalMethod file topModule evalStr)
 
 -- Given the filename, modulename, method to evaluate, evaluate, and return
@@ -122,7 +122,7 @@ multipleCheckSummary isSuccessFunction results
   | not (checkLength results) = error "Output lengths differ for some properties."
   | otherwise = (terminalMsg, logMsg)
    where executedCases = groupBy (\x y -> fst x == fst y) . sortBy (\x y -> fst x `compare` fst y) . rights $ concat results
-         allSuccesses = [rs | rs <- executedCases, length rs == length results, and (map (isSuccessFunction . snd) rs)]
+         allSuccesses = [rs | rs <- executedCases, length rs == length results, all (isSuccessFunction . snd) rs]
          countAlive = length allSuccesses
          countErrors = countMutants - length executedCases
          terminalMsg = "\nTotal number of mutants: " ++ show countMutants

@@ -11,7 +11,7 @@ import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
 import Data.Maybe (fromJust)
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp)
 import Data.List(nub, (\\), permutations)
-import Control.Monad (liftM)
+import Control.Monad (liftM, zipWithM)
 
 import MuCheck.MuOp
 import MuCheck.Utils.Syb
@@ -30,16 +30,16 @@ genMutants = genMutantsWith stdArgs
 genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
 genMutantsWith args funcname filename  = liftM length $ do
     ast <- getASTFromFile filename
-    f <- return (func funcname ast)
-    case (ops f ++ swapOps f) of
+    let f = func funcname ast
+    case ops f ++ swapOps f of
       [] -> return [] --  putStrLn "No applicable operator exists!"
-      _  -> sequence $ zipWith writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
+      _  -> zipWithM writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
   where ops f = relevantOps f (muOps args ++ valOps f ++ ifElseNegOps f ++ guardedBoolNegOps f)
 
-        valOps f = if (doMutateValues args) then (selectIntOps f) else []
-        ifElseNegOps f = if (doNegateIfElse args) then (selectIfElseBoolNegOps f) else []
-        guardedBoolNegOps f = if (doNegateGuards args) then (selectGuardedBoolNegOps f) else []
-        swapOps f = if (doMutatePatternMatches args) then (permMatches f ++ removeOnePMatch f) else []
+        valOps f = if doMutateValues args then selectIntOps f else []
+        ifElseNegOps f = if doNegateIfElse args then selectIfElseBoolNegOps f else []
+        guardedBoolNegOps f = if doNegateGuards args then selectGuardedBoolNegOps f else []
+        swapOps f = if doMutatePatternMatches args then permMatches f ++ removeOnePMatch f else []
 
         fstOrder = 1 -- first order
 
@@ -54,7 +54,7 @@ genMutantsWith args funcname filename  = liftM length $ do
         allMutants f = nub $ patternMatchMutants f ++ operatorMutants f
 
         func fname ast = fromJust $ selectOne (isFunctionD fname) ast
-        programMutants ast =  map (flip putDecls ast) $ mylst ast
+        programMutants ast =  map (putDecls ast) $ mylst ast
         mylst ast = [myfn ast x | x <- take (maxNumMutants args) $ allMutants (func funcname ast) ]
         myfn ast fn = replace (func funcname ast,fn) (getDecls ast)
         getASTFromFile filename = liftM parseModuleFromFile $ readFile filename
@@ -108,16 +108,16 @@ getDecls (Module _ _ _ _ _ _ decls) = decls
 
 extractStrings :: [Match] -> [String] 
 extractStrings [] = []
-extractStrings ((Match _ (Symbol name) _ _ _ _):xs) = name : (extractStrings xs)
-extractStrings ((Match _ (Ident name) _ _ _ _):xs) = name : (extractStrings xs)
+extractStrings (Match _ (Symbol name) _ _ _ _:xs) = name : extractStrings xs
+extractStrings (Match _ (Ident name) _ _ _ _:xs) = name : extractStrings xs
 
 getFuncNames :: [Decl] -> [String]
 getFuncNames [] = []
-getFuncNames ((FunBind m):xs) = (extractStrings m) ++ getFuncNames xs
+getFuncNames (FunBind m:xs) = extractStrings m ++ getFuncNames xs
 getFuncNames (_:xs) = getFuncNames xs
   
-putDecls :: [Decl] -> Module -> Module
-putDecls decls (Module a b c d e f _) = Module a b c d e f decls
+putDecls :: Module -> [Decl] -> Module
+putDecls (Module a b c d e f _) decls = Module a b c d e f decls
 
 getName :: Module -> String
 getName (Module _ (ModuleName name) _ _ _ _ _) = name
@@ -135,21 +135,21 @@ selectIntOps :: (Data a, Eq a) => a -> [MuOp]
 selectIntOps m = selectValOps isInt [
       \(Int i) -> Int (i + 1),
       \(Int i) -> Int (i - 1),
-      \(Int i) -> if (abs i /= 1) then Int 0 else Int i,
-      \(Int i) -> if (abs (i-1) /= 1) then Int 1 else Int i] m
+      \(Int i) -> if abs i /= 1 then Int 0 else Int i,
+      \(Int i) -> if abs (i-1) /= 1 then Int 1 else Int i] m
   where isInt (Int _) = True
         isInt _       = False
 
 -- negating boolean in if/else statements
 selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3] m
-  where isIf (If _ _ _) = True
-        isIf _          = False
+  where isIf If{} = True
+        isIf _    = False
 
 -- negating boolean in Guards
 selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps' isGuardedRhs negateGuardedRhs m
-  where isGuardedRhs (GuardedRhs _ _ _) = True
+  where isGuardedRhs GuardedRhs{} = True
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
         boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
         boolNegate x = [x]

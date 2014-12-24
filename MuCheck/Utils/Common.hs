@@ -12,7 +12,7 @@ _      `choose` 0       = [[]]
 genFileNames :: String -> [String]
 genFileNames s =  map newname [1..]
     where (name, ext) = splitAt (length s - 3) s
-          newname i= name ++ "_" ++ (show i) ++ ext
+          newname i= name ++ "_" ++ show i ++ ext
 
 -- replace first element in a list given old and new values
 replace :: Eq a => (a,a) -> [a] -> [a]
