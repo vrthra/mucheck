@@ -41,21 +41,23 @@ genMutantsWith args funcname filename  = liftM length $ do
         guardedBoolNegOps f = if (doNegateGuards args) then (selectGuardedBoolNegOps f) else []
         swapOps f = if (doMutatePatternMatches args) then (permMatches f ++ removeOnePMatch f) else []
 
-        stOrder = 1 -- first order
+        fstOrder = 1 -- first order
 
-        patternMatchMutants f = mutatesN (swapOps f) f stOrder
-        ifElseNegMutants f = mutatesN (ifElseNegOps f) f stOrder
-        guardedNegMutants f = mutatesN (guardedBoolNegOps f) f stOrder
-        operatorMutants f = if (genMode args == FirstOrderOnly) then (mutatesN (ops f) f stOrder) else (mutates (ops f) f)
+        patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: Decl -> [Decl]
+        patternMatchMutants f = mutatesN (swapOps f) f fstOrder
+        ifElseNegMutants f = mutatesN (ifElseNegOps f) f fstOrder
+        guardedNegMutants f = mutatesN (guardedBoolNegOps f) f fstOrder
+        operatorMutants f = case genMode args of
+            FirstOrderOnly -> mutatesN (ops f) f fstOrder
+            _              -> mutates (ops f) f
 
         allMutants f = nub $ patternMatchMutants f ++ operatorMutants f
 
         func fname ast = fromJust $ selectOne (isFunctionD fname) ast
         programMutants ast =  map (flip putDecls ast) $ mylst ast
-        mylst ast = do x <- take (maxNumMutants args) $ allMutants (func funcname ast)
-                       return $ myfn ast x
-        myfn ast fn = (replace (func funcname ast,fn) (getDecls ast))
-        getASTFromFile filename = readFile filename >>= return . parseModuleFromFile
+        mylst ast = [myfn ast x | x <- take (maxNumMutants args) $ allMutants (func funcname ast) ]
+        myfn ast fn = replace (func funcname ast,fn) (getDecls ast)
+        getASTFromFile filename = liftM parseModuleFromFile $ readFile filename
 
 -- Mutating a function's code using a bunch of mutation operators
 -- NOTE: In all the three mutate functions, we assume working
@@ -65,9 +67,10 @@ mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
 
 -- the third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
-mutatesN ops m 1 = ops >>= \op -> mutate op m
-mutatesN ops m c = ms >>= \m -> mutatesN ops m 1
-  where ms = mutatesN ops m (c-1)
+mutatesN ops m 1 = do op <- ops
+                      mutate op m
+mutatesN ops m c = do m <- mutatesN ops m (c-1)
+                      mutatesN ops m 1
 
 -- given a function, generate all mutants after applying applying 
 -- op once (op might be applied at different places). E.g.:
