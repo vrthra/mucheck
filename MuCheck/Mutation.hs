@@ -67,10 +67,8 @@ mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
 
 -- the third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
-mutatesN ops m 1 = do op <- ops
-                      mutate op m
-mutatesN ops m c = do m <- mutatesN ops m (c-1)
-                      mutatesN ops m 1
+mutatesN ops m 1 = concat [mutate op m | op <- ops ]
+mutatesN ops m c =  concat [mutatesN ops m 1 | m <- mutatesN ops m (c-1)]
 
 -- given a function, generate all mutants after applying applying 
 -- op once (op might be applied at different places). E.g.:
