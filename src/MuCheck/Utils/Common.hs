@@ -1,6 +1,8 @@
 module MuCheck.Utils.Common where
 
--- chooose [1,2,3,4,5] 4
+import System.FilePath (splitExtension)
+
+-- choose [1,2,3,4,5] 4
 --  = [[2,3,4,5],[1,3,4,5],[1,2,4,5],[1,2,3,5],[1,2,3,4]]
 choose :: [b] -> Int -> [[b]]
 _      `choose` 0       = [[]]
@@ -11,7 +13,7 @@ _      `choose` 0       = [[]]
 -- e.g.: "Quicksort.hs" ==> "Quicksort_1.hs", "Quicksort_2.hs", etc.
 genFileNames :: String -> [String]
 genFileNames s =  map newname [1..]
-    where (name, ext) = splitAt (length s - 3) s
+    where (name, ext) = splitExtension s
           newname i= name ++ "_" ++ show i ++ ext
 
 -- replace first element in a list given old and new values
