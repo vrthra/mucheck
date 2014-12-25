@@ -19,7 +19,6 @@ category:            Testing
 build-type:          Simple
 cabal-version:       >= 1.10
 
-
 source-repository    head
   type:              git
   location:          https://rgopinath@bitbucket.org/osu-testing/mucheck.git
