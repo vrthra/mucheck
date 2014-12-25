@@ -48,7 +48,7 @@ class Mutable a where
 (==>*) x lst = map (\i -> x ==> i) lst
 
 (*==>*) :: Mutable a => [a] -> [a] -> [MuOp]
-xs *==>* ys = concatMap (flip (==>*) ys) xs
+xs *==>* ys = concatMap (==>* ys) xs
 
 (~~>) :: (MonadPlus m, Eq a) => a -> a -> (a -> m a)
 x ~~> y = \z -> if z == x && x /= y then return y else mzero
