@@ -3,7 +3,7 @@ module MuCheck.Utils.Print where
 import Data.List(intercalate)
 
 -- utils for interpreter
-showPerCent x = " (" ++ show x ++ "%)"
+showPerCent x = "(" ++ show x ++ "%)"
 n `percent` t = 100 * n `div` t
 
 showAS :: [String] -> String
