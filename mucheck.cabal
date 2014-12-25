@@ -1,22 +1,38 @@
 name:                MuCheck
 version:             0.1.0.1
 synopsis:            Automated Mutation Testing
--- description:         
+description:         This package defines a mutation analysis library for haskell
+                     programs. It does this by parsing the haskell source, and
+                     replacing a few of the common haskell functions and operators
+                     with other, but similar operators and functions, and running
+                     the testsuite to check whether the difference has been
+                     detected. Currently, it supports QuickCheck and HUnit tests.
 homepage:            https://bitbucket.com/osu-testing/mucheck
 license:             GPL-2
 license-file:        LICENSE
-author:              Duc Lee, Rahul Gopinath
-maintainer:          ledu@onid.oregonstate.edu, rahul@gopinath.org
+author:              Duc Lee <ledu@onid.oregonstate.edu>
+                     Rahul Gopinath <rahul@gopinath.org>
+maintainer:          ledu@onid.oregonstate.edu
+                     rahul@gopinath.org
 -- copyright:           
 category:            Testing
 build-type:          Simple
-cabal-version:       >=1.8
+cabal-version:       >=1.10
 
 executable mucheck
   main-is: Main.hs
   build-depends:  base >=4.5, haskell-src-exts >=1.13, syb >= 0.4.0, time >= 1.4.0.1, QuickCheck>=2.6, hint >= 0.3.1.0, mtl>=2.1.2, HUnit >= 1.0, hood
+  default-language:    Haskell2010
 
 library
   exposed-modules: MuCheck.MuOp, MuCheck.StdArgs, MuCheck.Interpreter, MuCheck.Mutation, MuCheck.Operators, MuCheck.Utils.Syb, MuCheck.Utils.Common, MuCheck.Utils.Print
   -- other-modules:       
   build-depends:   base >=4.5, haskell-src-exts >=1.13, syb >= 0.4.0, time >= 1.4.0.1, QuickCheck>=2.6, hint >= 0.3.1.0, mtl>=2.1.2, HUnit >= 1.0, hood
+  default-language:    Haskell2010
+
+Test-Suite Test
+  type: exitcode-stdio-1.0
+  Hs-source-dirs: tests
+  main-is: Main.hs
+  build-depends: base, HUnit
+  default-language:    Haskell2010
