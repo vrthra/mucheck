@@ -9,8 +9,6 @@ import MuCheck.Mutation
 import MuCheck.Operators
 import MuCheck.Utils.Common
 
--- genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
-
 process :: String -> String -> String -> [String] -> IO ()
 process fn file modulename args = do
   numMutants <- genMutants fn file
