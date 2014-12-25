@@ -7,9 +7,9 @@ module MuCheck.MuOp (MuOp
           , Mutable
           ) where
 
-import Language.Haskell.Exts
-import Data.Generics
-import Control.Monad
+import Language.Haskell.Exts (Name, QName, QOp, Exp, Literal, GuardedRhs, Decl)
+import qualified Data.Generics as G
+import Control.Monad (MonadPlus, mzero)
 
 data MuOp = N  (Name, Name)
           | QN (QName, QName)
@@ -20,13 +20,13 @@ data MuOp = N  (Name, Name)
           | G  (GuardedRhs, GuardedRhs)
 
 -- boilerplate code
-mkMp' (N (s,t))  = mkMp (s ~~> t)
-mkMp' (QN (s,t)) = mkMp (s ~~> t)
-mkMp' (QO (s,t)) = mkMp (s ~~> t)
-mkMp' (E (s,t))  = mkMp (s ~~> t)
-mkMp' (D (s,t))  = mkMp (s ~~> t)
-mkMp' (L (s,t))  = mkMp (s ~~> t)
-mkMp' (G (s,t))  = mkMp (s ~~> t)
+mkMp' (N (s,t))  = G.mkMp (s ~~> t)
+mkMp' (QN (s,t)) = G.mkMp (s ~~> t)
+mkMp' (QO (s,t)) = G.mkMp (s ~~> t)
+mkMp' (E (s,t))  = G.mkMp (s ~~> t)
+mkMp' (D (s,t))  = G.mkMp (s ~~> t)
+mkMp' (L (s,t))  = G.mkMp (s ~~> t)
+mkMp' (G (s,t))  = G.mkMp (s ~~> t)
 
 showM (s, t) = "\n" ++ show s ++ " ==> " ++ show t
 instance Show MuOp where
@@ -40,14 +40,15 @@ instance Show MuOp where
 
 -- end boilerplate code
 
+-- Mutation operation representing translation from one fn to another fn.
 class Mutable a where
     (==>) :: a -> a -> MuOp
 
 (==>*) :: Mutable a => a -> [a] -> [MuOp]
-(==>*) x = map (x ==>)
+(==>*) x lst = map (\i -> x ==> i) lst
 
 (*==>*) :: Mutable a => [a] -> [a] -> [MuOp]
-xs *==>* ys = concatMap (flip (==>*) ys) xs
+xs *==>* ys = concatMap (==>* ys) xs
 
 (~~>) :: (MonadPlus m, Eq a) => a -> a -> (a -> m a)
 x ~~> y = \z -> if z == x && x /= y then return y else mzero

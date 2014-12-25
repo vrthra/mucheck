@@ -19,6 +19,10 @@ cabal install hint
 
 *Main> checkTestSuiteOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./test.log"
 ```
+Using custom list of mutators
+```
+genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
+```
 
 With Cabal Sandbox:
 ```
@@ -28,4 +32,9 @@ cabal install --only-dependencies
 cabal configure --flags="--enable-tests"
 cabal build
 cabal repl
+```
+
+Execute directly
+```
+./mucheck qsort Examples/Quicksort.hs Examples.Quicksort "quickCheckResult idEmpProp" "quickCheckResult revProp" "quickCheckResult modelProp"
 ```

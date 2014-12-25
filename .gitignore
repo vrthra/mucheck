@@ -1,0 +1,7 @@
+test.log
+Examples/*
+dist/*
+.gitignore
+.cabal-sandbox/*
+cabal.sandbox.config
+tags
