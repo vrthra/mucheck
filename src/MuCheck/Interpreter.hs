@@ -5,14 +5,18 @@ import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans ( liftIO )
 import qualified Test.QuickCheck.Test as Qc
 import qualified Test.HUnit as HUnit
+import qualified Test.Hspec.Core.Runner as Hspec
 import Data.Typeable
 import MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either
-import Data.List((\\), groupBy, sortBy)
+import Data.List((\\), groupBy, sortBy, intercalate, isInfixOf)
 import Data.Time.Clock
+
+import Debug.Trace
 
 deriving instance Typeable Qc.Result
 deriving instance Typeable HUnit.Counts
+deriving instance Typeable Hspec.Summary
 
 type InterpreterOutput a = Either I.InterpreterError (String, a)
 
@@ -21,6 +25,9 @@ checkPropsOnMutants = mutantCheckSummary
 
 checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
 checkTestSuiteOnMutants = mutantCheckSummary
+
+checkHspecOnMutants :: [String] -> String -> [String] -> String -> IO [Hspec.Summary]
+checkHspecOnMutants = mutantCheckSummary
 
 -- main entry point
 mutantCheckSummary :: Summarizable a => [String] -> String -> [String] -> FilePath -> IO [a]
@@ -117,6 +124,28 @@ instance Summarizable Qc.Result where
             isGaveUp _        = False
 
     multipleSummary = multipleCheckSummary Qc.isSuccess
+
+instance Summarizable Hspec.Summary where
+  singleSummary mutantFiles results = (terminalMsg,logMsg)
+    where (errorCases, executedCases) = partitionEithers results
+          x (Left y) = (show y)
+          x (Right z) = (show z)
+          r = length results
+          e = length errorCases
+          [successCases, failureCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure]
+          [s,f] = map length [successCases, failureCases]
+          terminalMsg = "\n\nTotal number of mutants: " ++ show r ++
+                        "\n\nErrors: " ++ show e ++ (e ./. r) ++
+                        "\nSuccesses (not killed): " ++ show s ++ (s ./. r) ++
+                        "\nFailures (killed): " ++ show f ++ (f ./. r)
+          isSuccess (Hspec.Summary { Hspec.summaryExamples = se, Hspec.summaryFailures = sf } ) = sf == 0
+          isFailure (Hspec.Summary { Hspec.summaryExamples = se, Hspec.summaryFailures = sf } ) = sf /= 0
+          errorFiles = mutantFiles \\ map fst executedCases
+          logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ showA errorFiles
+                   ++ "\n\nLoading error messages:\n " ++ showA errorCases
+                   ++ "\n\nSUCCESSES:\n " ++ showA successCases
+                   ++ "\n\nFAILURE:\n " ++ showA failureCases ++ "\n"
+  multipleSummary = multipleCheckSummary (\a -> True)
 
 -- we assume that checking each prop results in the same number of errorCases and executedCases
 multipleCheckSummary :: Show a => (a -> Bool) -> [[InterpreterOutput a]] -> (String, String)
