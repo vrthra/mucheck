@@ -29,3 +29,8 @@ cabal configure --flags="--enable-tests"
 cabal build
 cabal repl
 ```
+
+Execute directly
+```
+./mucheck qsort Examples/Quicksort.hs Examples.Quicksort "quickCheckResult idEmpProp" "quickCheckResult revProp" "quickCheckResult modelProp"
+```

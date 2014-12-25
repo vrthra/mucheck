@@ -1,4 +1,5 @@
 module Main where
+import System.Environment
 
 import MuCheck.MuOp
 import Language.Haskell.Exts
@@ -8,14 +9,22 @@ import MuCheck.Mutation
 import MuCheck.Operators
 import MuCheck.Utils.Common
 
-extraOps = Var . UnQual . Ident <$> ["qsort", "id", "reverse"]
+-- genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
 
--- NOTE: On QuickCheck.hs's mutants, it takes ~3-4 minutes to test 323 mutants on three properies.
--- We need mutant files to have been already generated. see README
-mytest = checkPropsOnMutants (take 13 mutantFiles) topModule  evalSrc logFile
-  where mutantFiles = genFileNames "Examples/Quicksort.hs"
-        topModule = "Examples.Quicksort"
-        evalSrc = ["quickCheckResult idEmpProp",  "quickCheckResult revProp", "quickCheckResult modelProp"]
-        logFile = "./logs.txt"
+process :: String -> String -> String -> [String] -> IO ()
+process fn file modulename args = do
+  numMutants <- genMutants fn file
+  checkPropsOnMutants (take numMutants $ genFileNames file) modulename args "./test.log"
+  return ()
 
-genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
+
+main :: IO ()
+main = do
+  val <- getArgs
+  case val of
+    ("-help" : _ ) -> help
+    (fn : file : modulename : args) -> process fn file modulename args
+    _ -> error "Need function file modulename [args]"
+
+help :: IO ()
+help = putStrLn "mucheck function file modulename [args]"
