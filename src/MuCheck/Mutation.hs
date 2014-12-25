@@ -19,11 +19,6 @@ import MuCheck.Utils.Common
 import MuCheck.Operators
 import MuCheck.StdArgs
 
-import Debug.Hood.Observe
-
-
-import Debug.Trace
-debug = flip trace
 -- entry point.
 genMutants = genMutantsWith stdArgs
 
