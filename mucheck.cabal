@@ -1,12 +1,12 @@
 name:                MuCheck
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Automated Mutation Testing
 -- description:         
 homepage:            https://bitbucket.com/osu-testing/mucheck
 license:             GPL-2
 license-file:        LICENSE
-author:              Duc Lee
-maintainer:          ledu@onid.oregonstate.edu
+author:              Duc Lee, Rahul Gopinath
+maintainer:          ledu@onid.oregonstate.edu, rahul@gopinath.org
 -- copyright:           
 category:            Testing
 build-type:          Simple
