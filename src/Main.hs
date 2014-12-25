@@ -20,9 +20,11 @@ main :: IO ()
 main = do
   val <- getArgs
   case val of
-    ("-help" : _ ) -> help
+    ("-h" : _ ) -> help
     (fn : file : modulename : args) -> process fn file modulename args
-    _ -> error "Need function file modulename [args]"
+    _ -> error "Need function file modulename [args]\n\tUse -h to get help"
 
 help :: IO ()
-help = putStrLn "mucheck function file modulename [args]"
+help = putStrLn ("mucheck function file modulename [args]\n" ++
+       "E.g: ./mucheck qsort Examples/Quicksort.hs Examples.Quicksort 'quickCheckResult idEmpProp' 'quickCheckResult revProp' 'quickCheckResult modelProp'")
+
