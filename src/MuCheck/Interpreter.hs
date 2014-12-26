@@ -8,7 +8,7 @@ import qualified Test.HUnit as HUnit
 import qualified Test.Hspec.Core.Runner as Hspec
 import Data.Typeable
 import MuCheck.Utils.Print (showA, showAS, (./.))
-import Data.Either
+import Data.Either (partitionEithers, rights)
 import Data.List((\\), groupBy, sortBy, intercalate, isInfixOf)
 import Data.Time.Clock
 
@@ -34,19 +34,29 @@ mutantCheckSummary :: Summarizable a => [String] -> String -> [String] -> FilePa
 mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
   let delim = "\n" ++ (take 25 (repeat '=')) ++ "\n"
-      singleTestSummaries = map (singleSummary mutantFiles) results
-      (terminalSummary,logSummary) = multipleSummary results
-      evalSrcLst' = map (delim ++) evalSrcLst
+      singleTestSummaries = map (testSummary mutantFiles) results
+      tssum  = suiteSummary results -- {terminalSummary,logSummary}
+      evalSrcLst' = map (\e -> delim ++ e ++ "\n") evalSrcLst
   -- print results to terminal
   putStrLn $ delim ++ "Overall Results:"
-  putStrLn terminalSummary
-  putStrLn $ showAS $ zipWith (++) evalSrcLst' $ map fst singleTestSummaries
+  putStrLn $ terminalSummary tssum
+  putStrLn $ showAS $ zipWith (++) evalSrcLst' $ map showBrief singleTestSummaries
   putStr delim
   -- print results to logfile
-  appendFile logFile $ "OVERALL RESULTS:\n" ++ logSummary ++ showAS (zipWith (++) evalSrcLst' $ map snd singleTestSummaries)
+  appendFile logFile $ "OVERALL RESULTS:\n" ++ (tssum_log tssum) ++ showAS (zipWith (++) evalSrcLst' $ map showDetail singleTestSummaries)
   -- hacky solution to avoid printing entire results to stdout and to give
   -- guidance to the type checker in picking specific Summarizable instances
   return $ tail [head $ (map snd) $ snd $ partitionEithers $ head results]
+  where showDetail msum = showBrief msum ++ "\n" ++ detail msum
+        showBrief msum = showAS ["Total number of mutants:\t" ++ show (tsum_numMutants msum),
+                                 "Failed to Load:\t" ++ show (tsum_loadError msum),
+                                 "Not Killed:\t" ++ show (tsum_notKilled msum),
+                                 "Killed:\t" ++ show (tsum_killed msum),
+                                 "Others:\t" ++ show (tsum_others msum)]
+        detail msum = tsum_log msum
+        terminalSummary tssum = showAS ["Total number of mutants:\t" ++ show (tssum_numMutants tssum),
+                                        "Total number of alive mutants:\t" ++ show (tssum_alive tssum),
+                                        "Total number of load errors:\t" ++ show (tssum_errors tssum)]
 
 -- Interpreter Functionalities
 -- Examples
@@ -63,104 +73,106 @@ evalMethod fileName topModule evalStr = do
   result <- I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
   return (fileName, result)
 
+data TSum = TSum {tsum_numMutants::Int, tsum_loadError::Int, tsum_notKilled::Int, tsum_killed::Int, tsum_others::Int, tsum_log::String}
+data TSSum = TSSum {tssum_numMutants::Int, tssum_alive::Int, tssum_errors::Int, tssum_log::String}
 
 -- Class/Instance declaration
 type MutantFilename = String
-type TerminalSummary = String
-type LogSummary = String
 class Typeable s => Summarizable s where
-    singleSummary :: [MutantFilename] -> [InterpreterOutput s] -> (TerminalSummary, LogSummary)
-    multipleSummary :: [[InterpreterOutput s]] -> (TerminalSummary, LogSummary)
+  testSummary :: [MutantFilename] -> [InterpreterOutput s] -> TSum
+  suiteSummary :: [[InterpreterOutput s]] -> TSSum
+  isSuccess :: s -> Bool
 
 instance Summarizable HUnit.Counts where
-    singleSummary mutantFiles results = (terminalMsg, logMsg)
-        where (loadingErrorCases, executedCases) = partitionEithers results
-              loadingErrorFiles = mutantFiles \\ map fst executedCases
-              successCases = filter ((\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0) . snd) executedCases
-              failuresCases = filter ((>0) . HUnit.failures . snd) executedCases
-              runningErrorCases = (filter ((>0) . HUnit.errors . snd) executedCases) \\ failuresCases
-              failToFullyTryCases = filter ((\c -> HUnit.cases c > HUnit.tried c) . snd) executedCases
-              r = length results
-              le = length loadingErrorCases
-              [s, fl, re, ftc] = map length [successCases, failuresCases, runningErrorCases, failToFullyTryCases]
-              terminalMsg = "\n\nTotal number of mutants: " ++ show r ++
-                            "\n\nFailed to load: " ++ show le ++
-                            "\nSuccesses (not killed): " ++ show s ++
-                            "\nFailures (killed): " ++ show fl ++
-                            "\nError while running: " ++ show re ++
-                            "\nIncompletely tested (may include failures and running errors): " ++ show ftc
-              logMsg = terminalMsg ++ "\n\nDetails: \n\nLoading error files:\n" ++ showA loadingErrorFiles
-                       ++ "\n\nLoading error messages:\n" ++ showA loadingErrorCases
-                       ++ "\n\nSuccesses:\n" ++ showA successCases
-                       ++ "\n\nFailures:\n" ++ showA failuresCases
-                       ++ "\n\nError while running:\n" ++ showA runningErrorCases
-                       ++ "\n\nIncompletely tested (may include failures and running errors):\n"
-                       ++ showA failToFullyTryCases ++ "\n"
-    multipleSummary = multipleCheckSummary (\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0)
+  testSummary mutantFiles results = TSum {
+    tsum_numMutants = r,
+    tsum_loadError = le,
+    tsum_notKilled = s,
+    tsum_killed = fl,
+    tsum_others = re + ftc,
+    tsum_log = logMsg}
+    where (loadingErrorCases, executedCases) = partitionEithers results
+          loadingErrorFiles = mutantFiles \\ map fst executedCases
+          successCases = filter (isSuccess . snd) executedCases
+          failuresCases = filter ((>0) . HUnit.failures . snd) executedCases
+          runningErrorCases = (filter ((>0) . HUnit.errors . snd) executedCases) \\ failuresCases
+          failToFullyTryCases = filter ((\c -> HUnit.cases c > HUnit.tried c) . snd) executedCases
+          r = length results
+          le = length loadingErrorCases
+          [s, fl, re, ftc] = map length [successCases, failuresCases, runningErrorCases, failToFullyTryCases]
+          logMsg = showAS ["Details:",
+                           "Loading error files:",showA loadingErrorFiles,
+                           "Loading error messages:",showA loadingErrorCases,
+                           "Successes:", showA successCases,
+                           "Failures:", showA failuresCases,
+                           "Error while running:", showA runningErrorCases,
+                           "Incompletely tested (may include failures and running errors):",showA failToFullyTryCases]
+  suiteSummary = multipleCheckSummary (isSuccess . snd)
+  isSuccess = (\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0)
 
 instance Summarizable Qc.Result where
-    singleSummary mutantFiles results = (terminalMsg, logMsg)
-      where (errorCases, executedCases) = partitionEithers results
-            [successCases, failureCases, gaveUpCases] = map (\c -> filter (c . snd) executedCases) [Qc.isSuccess, isFailure, isGaveUp]
-            r = length results
-            e = length errorCases
-            [s,f,g] = map length [successCases, failureCases, gaveUpCases]
-            errorFiles = mutantFiles \\ map fst executedCases
-            terminalMsg = "\n\nTotal number of mutants: " ++ show r ++
-                          "\n\nErrors: " ++ show e ++ (e ./. r) ++
-                          "\nSuccesses (not killed): " ++ show s ++ (s ./. r) ++
-                          "\nFailures (killed): " ++ show f ++ (f ./. r) ++
-                          "\nGaveups: " ++ show g ++ (g ./. r)
-            logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ showA errorFiles
-                    ++ "\n\nLoading error messages:\n " ++ showA errorCases
-                    ++ "\n\nSUCCESSES:\n " ++ showA successCases
-                    ++ "\n\nFAILURE:\n " ++ showA failureCases
-                    ++ "\n\nGAVEUPs:\n " ++ showA gaveUpCases ++ "\n"
-            isFailure :: Qc.Result -> Bool
-            isFailure Qc.Failure{} = True
-            isFailure _         = False
-            isGaveUp :: Qc.Result -> Bool
-            isGaveUp Qc.GaveUp{} = True
-            isGaveUp _        = False
-
-    multipleSummary = multipleCheckSummary Qc.isSuccess
-
-instance Summarizable Hspec.Summary where
-  singleSummary mutantFiles results = (terminalMsg,logMsg)
+  testSummary mutantFiles results = TSum {
+    tsum_numMutants = r,
+    tsum_loadError = e,
+    tsum_notKilled = s,
+    tsum_killed = f,
+    tsum_others = g,
+    tsum_log = logMsg}
     where (errorCases, executedCases) = partitionEithers results
+          [successCases, failureCases, gaveUpCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isGaveUp]
           r = length results
           e = length errorCases
-          [successCases, failureCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure]
-          [s,f] = map length [successCases, failureCases]
-          terminalMsg = "\n\nTotal number of mutants: " ++ show r ++
-                        "\n\nErrors: " ++ show e ++ (e ./. r) ++
-                        "\nSuccesses (not killed): " ++ show s ++ (s ./. r) ++
-                        "\nFailures (killed): " ++ show f ++ (f ./. r)
-          isSuccess (Hspec.Summary { Hspec.summaryExamples = se, Hspec.summaryFailures = sf } ) = sf == 0
-          isFailure (Hspec.Summary { Hspec.summaryExamples = se, Hspec.summaryFailures = sf } ) = sf /= 0
+          [s,f,g] = map length [successCases, failureCases, gaveUpCases]
           errorFiles = mutantFiles \\ map fst executedCases
-          logMsg = terminalMsg ++ "\n\nDetails:\n\nLoading error files:\n" ++ showA errorFiles
-                   ++ "\n\nLoading error messages:\n " ++ showA errorCases
-                   ++ "\n\nSUCCESSES:\n " ++ showA successCases
-                   ++ "\n\nFAILURE:\n " ++ showA failureCases ++ "\n"
-  multipleSummary = multipleCheckSummary (\a -> True)
+          logMsg = showAS ["Details:",
+                           "Loading error files:", showA errorFiles,
+                           "Loading error messages:", showA errorCases,
+                           "Successes:", showA successCases,
+                           "Failure:", showA failureCases,
+                           "Gaveups:", showA gaveUpCases]
+          isFailure :: Qc.Result -> Bool
+          isFailure Qc.Failure{} = True
+          isFailure _         = False
+          isGaveUp :: Qc.Result -> Bool
+          isGaveUp Qc.GaveUp{} = True
+          isGaveUp _        = False
+
+  suiteSummary = multipleCheckSummary (isSuccess . snd)
+  isSuccess = Qc.isSuccess
+
+instance Summarizable Hspec.Summary where
+  testSummary mutantFiles results = TSum {
+    tsum_numMutants = r,
+    tsum_loadError = e,
+    tsum_notKilled = s,
+    tsum_killed = f,
+    tsum_others = 0,
+    tsum_log = logMsg}
+      where (errorCases, executedCases) = partitionEithers results
+            r = length results
+            e = length errorCases
+            [successCases, failureCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure]
+            [s,f] = map length [successCases, failureCases]
+            errorFiles = mutantFiles \\ map fst executedCases
+            logMsg = showAS ["Details:",
+                             "Loading error files:", showA errorFiles,
+                             "Loading error messages:", showA errorCases,
+                             "Successes:", showA successCases,
+                             "Failure:", showA failureCases]
+            isFailure = not . isSuccess
+  suiteSummary = multipleCheckSummary (isSuccess . snd)
+  isSuccess (Hspec.Summary { Hspec.summaryExamples = se, Hspec.summaryFailures = sf } ) = sf == 0
 
 -- we assume that checking each prop results in the same number of errorCases and executedCases
-multipleCheckSummary :: Show a => (a -> Bool) -> [[InterpreterOutput a]] -> (String, String)
 multipleCheckSummary isSuccessFunction results
   | not (checkLength results) = error "Output lengths differ for some properties."
-  | otherwise = (terminalMsg, logMsg)
-   where executedCases = groupBy (\x y -> fst x == fst y) . sortBy (\x y -> fst x `compare` fst y) . rights $ concat results
-         allSuccesses = [rs | rs <- executedCases, length rs == length results, all (isSuccessFunction . snd) rs]
-         countAlive = length allSuccesses
-         countErrors = countMutants - length executedCases
-         terminalMsg = "\nTotal number of mutants: " ++ show countMutants
-                    ++ "\nTotal number of alive and error-free mutants: " ++ show countAlive
-                    ++ (countAlive ./. countMutants) ++ "\n"
-                    ++ "Total number of erroneous mutants (failed to be loaded): " ++ show countErrors ++ (countErrors ./. countMutants) ++ "\n"
-         logMsg = terminalMsg ++ "\nDetails:\n\n" ++ showA allSuccesses ++ "\n"
-
-         checkLength results = and $ map ((==countMutants) . length) results ++ map ((==countExecutedCases) . length) executedCases
-         countExecutedCases = length . head $ executedCases
-         countMutants = length . head $ results
+  | otherwise = TSSum {tssum_numMutants = countMutants, tssum_alive = countAlive, tssum_errors= countErrors, tssum_log = logMsg}
+  where executedCases = groupBy (\x y -> fst x == fst y) . sortBy (\x y -> fst x `compare` fst y) . rights $ concat results
+        allSuccesses = [rs | rs <- executedCases, length rs == length results, all isSuccessFunction rs]
+        countAlive = length allSuccesses
+        countErrors = countMutants - length executedCases
+        logMsg = showA allSuccesses
+        checkLength results = and $ map ((==countMutants) . length) results ++ map ((==countExecutedCases) . length) executedCases
+        countExecutedCases = length . head $ executedCases
+        countMutants = length . head $ results
 
