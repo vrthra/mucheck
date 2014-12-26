@@ -45,15 +45,17 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   return $ tail [head $ (map snd) $ snd $ partitionEithers $ head results]
   where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ detail msum
         showBrief (method, msum) = showAS [method,
-                                           "Total number of mutants:\t" ++ show (tsum_numMutants msum),
-                                           "Failed to Load:\t" ++ show (tsum_loadError msum),
-                                           "Not Killed:\t" ++ show (tsum_notKilled msum),
-                                           "Killed:\t" ++ show (tsum_killed msum),
-                                           "Others:\t" ++ show (tsum_others msum)]
+                                           "\tTotal number of mutants:\t" ++ show (tsum_numMutants msum),
+                                           "\tFailed to Load:\t" ++ show (tsum_loadError msum),
+                                           "\tNot Killed:\t" ++ show (tsum_notKilled msum),
+                                           "\tKilled:\t" ++ show (tsum_killed msum),
+                                           "\tOthers:\t" ++ show (tsum_others msum),
+                                           ""]
         detail msum = tsum_log msum
         terminalSummary tssum = showAS ["Total number of mutants:\t" ++ show (tssum_numMutants tssum),
                                         "Total number of alive mutants:\t" ++ show (tssum_alive tssum),
-                                        "Total number of load errors:\t" ++ show (tssum_errors tssum)]
+                                        "Total number of load errors:\t" ++ show (tssum_errors tssum),
+                                        ""]
         delim = "\n" ++ (take 25 (repeat '=')) ++ "\n"
 
 -- Interpreter Functionalities
