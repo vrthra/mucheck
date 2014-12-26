@@ -11,11 +11,6 @@ data TSum = TSum {tsum_numMutants::Int,
                   tsum_others::Int,
                   tsum_log::String}
 
-data TSSum = TSSum {tssum_numMutants::Int,
-                    tssum_alive::Int,
-                    tssum_errors::Int,
-                    tssum_log::String}
-
 -- Class/Instance declaration
 type MutantFilename = String
 class Typeable s => Summarizable s where

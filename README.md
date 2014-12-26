@@ -13,7 +13,7 @@ cabal install hint
 
 For QuickCheck
 ```
-*Main> numMutants <- genMutants "qsort" "Examples/Quicksort.hs"
+*Main> numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
 
 *Main> checkQuickCheckOnMutants (take numMutants $ genFileNames "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./test.log"
 ```
