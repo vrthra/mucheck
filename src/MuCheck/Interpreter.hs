@@ -69,9 +69,10 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
            where cpx fn = show (fn msum) ++ " " ++ (fn msum) ./. (tsum_numMutants msum)
         terminalSummary tssum = showAS [
           "Total number of mutants:\t" ++ show (tssum_numMutants tssum),
-          "Total number of alive mutants:\t" ++ show (tssum_alive tssum),
-          "Total number of load errors:\t" ++ show (tssum_errors tssum),
+          "Total number of alive mutants:\t" ++ (cpx tssum_alive),
+          "Total number of load errors:\t" ++ (cpx tssum_errors),
           ""]
+           where cpx fn = show (fn tssum) ++ " " ++ (fn tssum) ./. (tssum_numMutants tssum)
         delim = "\n" ++ replicate 25 '=' ++ "\n"
 
 
@@ -80,7 +81,7 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
 -- >>> t = runInterpreter (evalMethod "Examples/QuickCheckTest.hs" "Examples.QuickCheckTest" "quickCheckResult idEmp")
 -- @
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
-  where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr ++ ">"
+  where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
                                     I.runInterpreter (evalMethod file topModule evalStr)
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.

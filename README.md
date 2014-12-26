@@ -27,10 +27,12 @@ For Hspec:
 ```
 *Main> numMutants <- genMutants "qsort" "Examples/HspecTest.hs"
 
-*Main> checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec (with \"qsort1\")"] "./test.log"
+*Main> checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec"] "./test.log"
 ```
-Note that using MuCheck with Hspec is a little more involved than HUnit qnd QuickCheck. You will need to define the `with` function or something similar if you wish to select specific groups to run. See `Examples/HspecTest.hs` for a simple example.
-
+Note that using MuCheck with Hspec you can also choose which groups to run. It is a little more involved than QuickCheck. You will need to define the `with` function or something similar if you wish to select specific groups to run. See `Examples/HspecTestWith.hs` for a simple example.
+```
+*Main> checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTestWith.hs") "Examples.HspecTestWith" ["spec (with \"qsort1\")"] "./test.log"
+```
 Using custom list of mutators
 ```
 genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
