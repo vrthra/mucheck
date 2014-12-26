@@ -4,11 +4,14 @@ import Control.Monad (void)
 
 import MuCheck.MuOp
 import MuCheck.StdArgs
-import MuCheck.Interpreter
 import MuCheck.Mutation
 import MuCheck.Operators
 import MuCheck.Utils.Common
 import MuCheck.Utils.Print
+import MuCheck.Interpreter
+import MuCheck.Run.QuickCheck
+import MuCheck.Run.HUnit
+import MuCheck.Run.Hspec
 
 process :: String -> String -> String -> String -> [String] -> IO ()
 process t fn file modulename args = do
