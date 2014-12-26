@@ -1,7 +1,7 @@
 module MuCheck.Utils.CommonSpec (main, spec) where
-
 import Test.Hspec
 import Test.QuickCheck
+import System.Random
 import qualified MuCheck.Utils.Common as MUC
 
 main :: IO ()
@@ -41,3 +41,18 @@ spec = do
     it "if given list return subset with given size" $ do
       MUC.choose [1,2,3] 2 `shouldBe` [[1,2], [1,3], [2,3]]
 
+  describe "remElt" $ do
+    it "must remove element at given index" $ do
+      MUC.remElt 2 [1,2,3,4] `shouldBe` [1,2,4]
+
+  describe "sample" $ do
+    it "must sample a given size subset" $ do
+      (MUC.sample (mkStdGen 1) 2 [1,2,3,4]) `shouldBe` [2, 3]
+
+  describe "sampleF" $ do
+    it "must sample a given fraction subset" $ do
+      (MUC.sampleF (mkStdGen 1) 0.5 [1,2,3,4]) `shouldBe` [2, 3]
+
+  describe "coupling" $ do
+    it "must sample a given fraction subset" $ do
+      (MUC.coupling (+) [1,2,3]) `shouldBe` [3,4,3,5,4,5]

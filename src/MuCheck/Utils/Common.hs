@@ -6,10 +6,13 @@ import Data.List
 import Control.Applicative
 
 -- | The `choose` function generates subsets of a given size
-choose :: [b] -> Int -> [[b]]
-_      `choose` 0       = [[]]
-[]     `choose` _       =  []
-(x:xs) `choose` k       =  (x:) `fmap` (xs `choose` (k-1)) ++ xs `choose` k
+choose :: [a] -> Int -> [[a]]
+choose xs n = filter (\x -> length x == n) $ subsequences xs
+
+-- | The `coupling` function produces all possible pairings, and applies the
+-- given function to each
+coupling fn ops = [(fn o1 o2) | o1 <- ops, o2 <- ops, o1 /= o2]
+
 
 -- | The `genFileNames` function lazily generates filenames of mutants
 genFileNames :: String -> [String]
@@ -37,12 +40,14 @@ sample g n xs = val : sample g' (n - 1) (remElt idx xs)
   where val = xs !! idx
         (idx,g')  = randomR (0, length xs - 1) g
 
--- | The `remElt` function removes element at index specified from a list
-remElt idx xs = front ++ ack
-  where (front,b:ack) = splitAt idx xs
-
 -- | The `sampleF` function takes a random generator, and a fraction and
 -- returns subset of size given by fraction
 sampleF :: (RandomGen g, Num n) => g -> Rational -> [t] -> [t]
 sampleF g f xs = sample g l xs
     where l = round $ f * fromIntegral (length xs)
+
+-- | The `remElt` function removes element at index specified from a list
+remElt :: Int -> [a] -> [a]
+remElt idx xs = front ++ ack
+  where (front,b:ack) = splitAt idx xs
+
