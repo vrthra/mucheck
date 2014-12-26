@@ -12,8 +12,6 @@ import Data.Either (partitionEithers, rights)
 import Data.List((\\), groupBy, sortBy, intercalate, isInfixOf)
 import Data.Time.Clock
 
-import Debug.Trace
-
 deriving instance Typeable Qc.Result
 deriving instance Typeable HUnit.Counts
 deriving instance Typeable Hspec.Summary
@@ -33,30 +31,30 @@ checkHspecOnMutants = mutantCheckSummary
 mutantCheckSummary :: Summarizable a => [String] -> String -> [String] -> FilePath -> IO [a]
 mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
-  let delim = "\n" ++ (take 25 (repeat '=')) ++ "\n"
-      singleTestSummaries = map (testSummary mutantFiles) results
-      tssum  = suiteSummary results -- {terminalSummary,logSummary}
-      evalSrcLst' = map (\e -> delim ++ e ++ "\n") evalSrcLst
+  let singleTestSummaries = zip evalSrcLst $ map (testSummary mutantFiles) results
+      tssum  = suiteSummary results
   -- print results to terminal
   putStrLn $ delim ++ "Overall Results:"
   putStrLn $ terminalSummary tssum
-  putStrLn $ showAS $ zipWith (++) evalSrcLst' $ map showBrief singleTestSummaries
+  putStrLn $ showAS $ map showBrief singleTestSummaries
   putStr delim
   -- print results to logfile
-  appendFile logFile $ "OVERALL RESULTS:\n" ++ (tssum_log tssum) ++ showAS (zipWith (++) evalSrcLst' $ map showDetail singleTestSummaries)
+  appendFile logFile $ "OVERALL RESULTS:\n" ++ (tssum_log tssum) ++ (showAS $ map showDetail singleTestSummaries)
   -- hacky solution to avoid printing entire results to stdout and to give
   -- guidance to the type checker in picking specific Summarizable instances
   return $ tail [head $ (map snd) $ snd $ partitionEithers $ head results]
-  where showDetail msum = showBrief msum ++ "\n" ++ detail msum
-        showBrief msum = showAS ["Total number of mutants:\t" ++ show (tsum_numMutants msum),
-                                 "Failed to Load:\t" ++ show (tsum_loadError msum),
-                                 "Not Killed:\t" ++ show (tsum_notKilled msum),
-                                 "Killed:\t" ++ show (tsum_killed msum),
-                                 "Others:\t" ++ show (tsum_others msum)]
+  where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ detail msum
+        showBrief (method, msum) = showAS [method,
+                                           "Total number of mutants:\t" ++ show (tsum_numMutants msum),
+                                           "Failed to Load:\t" ++ show (tsum_loadError msum),
+                                           "Not Killed:\t" ++ show (tsum_notKilled msum),
+                                           "Killed:\t" ++ show (tsum_killed msum),
+                                           "Others:\t" ++ show (tsum_others msum)]
         detail msum = tsum_log msum
         terminalSummary tssum = showAS ["Total number of mutants:\t" ++ show (tssum_numMutants tssum),
                                         "Total number of alive mutants:\t" ++ show (tssum_alive tssum),
                                         "Total number of load errors:\t" ++ show (tssum_errors tssum)]
+        delim = "\n" ++ (take 25 (repeat '=')) ++ "\n"
 
 -- Interpreter Functionalities
 -- Examples
