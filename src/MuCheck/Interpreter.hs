@@ -62,7 +62,9 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
 -- Examples
 -- t = runInterpreter (evalMethod "Examples/Quicksort.hs" "Quicksort" "quickCheckResult idEmp")
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
-  where evalMyStr evalStr file = I.runInterpreter (evalMethod file topModule evalStr)
+  where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr ++ ">"
+                                    x <- I.runInterpreter (evalMethod file topModule evalStr)
+                                    return x
 
 -- Given the filename, modulename, method to evaluate, evaluate, and return
 -- result as a pair.
