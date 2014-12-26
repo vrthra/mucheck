@@ -1,5 +1,5 @@
 name:                MuCheck
-version:             0.1.0.1
+version:             0.1.1.0
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
