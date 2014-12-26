@@ -1,12 +1,13 @@
 name:                MuCheck
-version:             0.1.0.1
+version:             0.1.1.0
 synopsis:            Automated Mutation Testing
 description:         This package defines a mutation analysis library for haskell
                      programs. It does this by parsing the haskell source, and
                      replacing a few of the common haskell functions and operators
                      with other, but similar operators and functions, and running
                      the testsuite to check whether the difference has been
-                     detected. Currently, it supports QuickCheck and HUnit tests.
+                     detected. Currently, it supports QuickCheck, HUnit and Hspec
+                     tests.
 homepage:            https://bitbucket.com/osu-testing/mucheck
 license:             GPL-2
 license-file:        LICENSE
@@ -21,7 +22,7 @@ cabal-version:       >= 1.10
 source-repository    this
   type:              git
   location:          https://bitbucket.org/osu-testing/mucheck.git
-  tag:               0.1.0.1
+  tag:               0.1.1.0
 
 executable mucheck
   main-is:          Main.hs
