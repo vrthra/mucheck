@@ -12,6 +12,8 @@ import Data.Maybe (fromJust)
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp)
 import Data.List(nub, (\\), permutations)
 import Control.Monad (liftM, zipWithM)
+import System.Random
+import Data.Time.Clock.POSIX
 
 import MuCheck.MuOp
 import MuCheck.Utils.Syb
@@ -25,33 +27,35 @@ genMutants = genMutantsWith stdArgs
 genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
 genMutantsWith args funcname filename  = liftM length $ do
     ast <- getASTFromFile filename
+    now <- round `fmap` getPOSIXTime
     let f = func funcname ast
-    case ops f ++ swapOps f of
-      [] -> return [] --  putStrLn "No applicable operator exists!"
-      _  -> zipWithM writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
-  where ops f = relevantOps f (muOps args ++ valOps f ++ ifElseNegOps f ++ guardedBoolNegOps f)
+        g = mkStdGen now
+        ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
+        swapOps = sampleF g (doMutatePatternMatches args) $ permMatches f ++ removeOnePMatch f
 
-        valOps f = if doMutateValues args then selectIntOps f else []
-        ifElseNegOps f = if doNegateIfElse args then selectIfElseBoolNegOps f else []
-        guardedBoolNegOps f = if doNegateGuards args then selectGuardedBoolNegOps f else []
-        swapOps f = if doMutatePatternMatches args then permMatches f ++ removeOnePMatch f else []
+        valOps = sampleF g (doMutateValues args) $ selectIntOps f
+        ifElseNegOps = sampleF g (doNegateIfElse args) $ selectIfElseBoolNegOps f
+        guardedBoolNegOps = sampleF g (doNegateGuards args) $ selectGuardedBoolNegOps f
 
-        fstOrder = 1 -- first order
+        allMutants = nub $ patternMatchMutants ++ operatorMutants
 
-        patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: Decl -> [Decl]
-        patternMatchMutants f = mutatesN (swapOps f) f fstOrder
-        ifElseNegMutants f = mutatesN (ifElseNegOps f) f fstOrder
-        guardedNegMutants f = mutatesN (guardedBoolNegOps f) f fstOrder
-        operatorMutants f = case genMode args of
-            FirstOrderOnly -> mutatesN (ops f) f fstOrder
-            _              -> mutates (ops f) f
-
-        allMutants f = nub $ patternMatchMutants f ++ operatorMutants f
+        patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
+        patternMatchMutants = mutatesN swapOps f fstOrder
+        ifElseNegMutants = mutatesN ifElseNegOps f fstOrder
+        guardedNegMutants = mutatesN guardedBoolNegOps f fstOrder
+        operatorMutants = case genMode args of
+            FirstOrderOnly -> mutatesN ops f fstOrder
+            _              -> mutates ops f
 
         func fname ast = fromJust $ selectOne (isFunctionD fname) ast
         programMutants ast =  map (putDecls ast) $ mylst ast
-        mylst ast = [myfn ast x | x <- take (maxNumMutants args) $ allMutants (func funcname ast) ]
+        mylst ast = [myfn ast x | x <- take (maxNumMutants args) allMutants]
         myfn ast fn = replace (func funcname ast,fn) (getDecls ast)
+
+    case ops ++ swapOps of
+      [] -> return [] --  putStrLn "No applicable operator exists!"
+      _  -> zipWithM writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
+  where fstOrder = 1 -- first order
         getASTFromFile filename = liftM parseModuleFromFile $ readFile filename
 
 -- Mutating a function's code using a bunch of mutation operators
