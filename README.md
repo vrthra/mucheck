@@ -15,13 +15,13 @@ For QuickCheck
 ```
 *Main> numMutants <- genMutants "qsort" "Examples/Quicksort.hs"
 
-*Main> checkPropsOnMutants (take numMutants $ genFileNames "Examples/Quicksort.hs") "Examples.Quicksort" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./test.log"
+*Main> checkQuickCheckOnMutants (take numMutants $ genFileNames "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./test.log"
 ```
 For HUnit
 ```
 *Main> numMutants <- genMutants "qsort" "Examples/HUnitTest.hs"
 
-*Main> checkTestSuiteOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./test.log"
+*Main> checkHUnitOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./test.log"
 ```
 For Hspec: 
 ```
@@ -48,5 +48,5 @@ cabal repl
 
 Execute directly
 ```
-./mucheck qsort Examples/Quicksort.hs Examples.Quicksort "quickCheckResult idEmpProp" "quickCheckResult revProp" "quickCheckResult modelProp"
+./mucheck qsort Examples/QuickCheckTest.hs Examples.QuickCheckTest "quickCheckResult idEmpProp" "quickCheckResult revProp" "quickCheckResult modelProp"
 ```

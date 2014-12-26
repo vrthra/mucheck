@@ -1,4 +1,4 @@
-module Examples.Quicksort where
+module Examples.QuickCheckTest where
 import Test.QuickCheck
 import Data.List
 

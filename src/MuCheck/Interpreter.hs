@@ -18,11 +18,11 @@ deriving instance Typeable Hspec.Summary
 
 type InterpreterOutput a = Either I.InterpreterError (String, a)
 
-checkPropsOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.Result]
-checkPropsOnMutants = mutantCheckSummary
+checkQuickCheckOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.Result]
+checkQuickCheckOnMutants = mutantCheckSummary
 
-checkTestSuiteOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
-checkTestSuiteOnMutants = mutantCheckSummary
+checkHUnitOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
+checkHUnitOnMutants = mutantCheckSummary
 
 checkHspecOnMutants :: [String] -> String -> [String] -> String -> IO [Hspec.Summary]
 checkHspecOnMutants = mutantCheckSummary
