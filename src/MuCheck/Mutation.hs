@@ -49,7 +49,7 @@ genMutantsWith args funcname filename  = liftM length $ do
 
         func fname ast = fromJust $ selectOne (isFunctionD fname) ast
         programMutants ast =  map (putDecls ast) $ mylst ast
-        mylst ast = [myfn ast x | x <- take (maxNumMutants args) $ allMutants]
+        mylst ast = [myfn ast x | x <- take (maxNumMutants args) allMutants]
         myfn ast fn = replace (func funcname ast,fn) (getDecls ast)
 
     case ops ++ swapOps of

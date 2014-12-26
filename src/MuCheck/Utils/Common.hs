@@ -33,16 +33,16 @@ safeHead (x:xs) = Just x
 -- subset of given size.
 sample :: (RandomGen g, Num n, Eq n) => g -> n -> [t] -> [t]
 sample g 0 xs = []
-sample g n xs = val : (sample g' (n - 1) (remElt idx xs))
+sample g n xs = val : sample g' (n - 1) (remElt idx xs)
   where val = xs !! idx
         (idx,g')  = randomR (0, length xs - 1) g
 
 -- | The `remElt` function removes element at index specified from a list
 remElt idx xs = front ++ ack
-  where (front,b:ack) = (splitAt idx xs)
+  where (front,b:ack) = splitAt idx xs
 
 -- | The `sampleF` function takes a random generator, and a fraction and
 -- returns subset of size given by fraction
 sampleF :: (RandomGen g, Num n) => g -> Rational -> [t] -> [t]
 sampleF g f xs = sample g l xs
-    where l = round ((fromIntegral (length xs)) * f)
+    where l = round $ f * fromIntegral (length xs)

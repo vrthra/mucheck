@@ -11,6 +11,7 @@ import MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either (partitionEithers, rights)
 import Data.List((\\), groupBy, sortBy, intercalate, isInfixOf)
 import Data.Time.Clock
+import Data.Function (on)
 
 deriving instance Typeable Qc.Result
 deriving instance Typeable HUnit.Counts
@@ -39,11 +40,11 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   putStrLn $ showAS $ map showBrief singleTestSummaries
   putStr delim
   -- print results to logfile
-  appendFile logFile $ "OVERALL RESULTS:\n" ++ (tssum_log tssum) ++ (showAS $ map showDetail singleTestSummaries)
+  appendFile logFile $ "OVERALL RESULTS:\n" ++ tssum_log tssum ++ showAS (map showDetail singleTestSummaries)
   -- hacky solution to avoid printing entire results to stdout and to give
   -- guidance to the type checker in picking specific Summarizable instances
-  return $ tail [head $ (map snd) $ snd $ partitionEithers $ head results]
-  where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ detail msum
+  return $ tail [head $ map snd $ snd $ partitionEithers $ head results]
+  where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ tsum_log msum
         showBrief (method, msum) = showAS [method,
                                            "\tTotal number of mutants:\t" ++ show (tsum_numMutants msum),
                                            "\tFailed to Load:\t" ++ show (tsum_loadError msum),
@@ -51,20 +52,18 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
                                            "\tKilled:\t" ++ show (tsum_killed msum),
                                            "\tOthers:\t" ++ show (tsum_others msum),
                                            ""]
-        detail msum = tsum_log msum
         terminalSummary tssum = showAS ["Total number of mutants:\t" ++ show (tssum_numMutants tssum),
                                         "Total number of alive mutants:\t" ++ show (tssum_alive tssum),
                                         "Total number of load errors:\t" ++ show (tssum_errors tssum),
                                         ""]
-        delim = "\n" ++ (take 25 (repeat '=')) ++ "\n"
+        delim = "\n" ++ replicate 25 '=' ++ "\n"
 
 -- Interpreter Functionalities
 -- Examples
 -- t = runInterpreter (evalMethod "Examples/Quicksort.hs" "Quicksort" "quickCheckResult idEmp")
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
   where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr ++ ">"
-                                    x <- I.runInterpreter (evalMethod file topModule evalStr)
-                                    return x
+                                    I.runInterpreter (evalMethod file topModule evalStr)
 
 -- Given the filename, modulename, method to evaluate, evaluate, and return
 -- result as a pair.
@@ -75,8 +74,16 @@ evalMethod fileName topModule evalStr = do
   result <- I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
   return (fileName, result)
 
-data TSum = TSum {tsum_numMutants::Int, tsum_loadError::Int, tsum_notKilled::Int, tsum_killed::Int, tsum_others::Int, tsum_log::String}
-data TSSum = TSSum {tssum_numMutants::Int, tssum_alive::Int, tssum_errors::Int, tssum_log::String}
+data TSum = TSum {tsum_numMutants::Int,
+                  tsum_loadError::Int,
+                  tsum_notKilled::Int,
+                  tsum_killed::Int,
+                  tsum_others::Int,
+                  tsum_log::String}
+data TSSum = TSSum {tssum_numMutants::Int,
+                    tssum_alive::Int,
+                    tssum_errors::Int,
+                    tssum_log::String}
 
 -- Class/Instance declaration
 type MutantFilename = String
@@ -97,7 +104,7 @@ instance Summarizable HUnit.Counts where
           loadingErrorFiles = mutantFiles \\ map fst executedCases
           successCases = filter (isSuccess . snd) executedCases
           failuresCases = filter ((>0) . HUnit.failures . snd) executedCases
-          runningErrorCases = (filter ((>0) . HUnit.errors . snd) executedCases) \\ failuresCases
+          runningErrorCases = filter ((>0) . HUnit.errors . snd) executedCases \\ failuresCases
           failToFullyTryCases = filter ((\c -> HUnit.cases c > HUnit.tried c) . snd) executedCases
           r = length results
           le = length loadingErrorCases
@@ -110,7 +117,7 @@ instance Summarizable HUnit.Counts where
                            "Error while running:", showA runningErrorCases,
                            "Incompletely tested (may include failures and running errors):",showA failToFullyTryCases]
   suiteSummary = multipleCheckSummary (isSuccess . snd)
-  isSuccess = (\c -> (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0)
+  isSuccess c = (HUnit.cases c == HUnit.tried c) && HUnit.failures c == 0 && HUnit.errors c == 0
 
 instance Summarizable Qc.Result where
   testSummary mutantFiles results = TSum {
@@ -168,8 +175,11 @@ instance Summarizable Hspec.Summary where
 -- we assume that checking each prop results in the same number of errorCases and executedCases
 multipleCheckSummary isSuccessFunction results
   | not (checkLength results) = error "Output lengths differ for some properties."
-  | otherwise = TSSum {tssum_numMutants = countMutants, tssum_alive = countAlive, tssum_errors= countErrors, tssum_log = logMsg}
-  where executedCases = groupBy (\x y -> fst x == fst y) . sortBy (\x y -> fst x `compare` fst y) . rights $ concat results
+  | otherwise = TSSum {tssum_numMutants = countMutants,
+                       tssum_alive = countAlive,
+                       tssum_errors= countErrors,
+                       tssum_log = logMsg}
+  where executedCases = groupBy ((==) `on` fst) . sortBy (compare `on` fst) . rights $ concat results
         allSuccesses = [rs | rs <- executedCases, length rs == length results, all isSuccessFunction rs]
         countAlive = length allSuccesses
         countErrors = countMutants - length executedCases
