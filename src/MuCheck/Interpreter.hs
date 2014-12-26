@@ -128,8 +128,6 @@ instance Summarizable Qc.Result where
 instance Summarizable Hspec.Summary where
   singleSummary mutantFiles results = (terminalMsg,logMsg)
     where (errorCases, executedCases) = partitionEithers results
-          x (Left y) = (show y)
-          x (Right z) = (show z)
           r = length results
           e = length errorCases
           [successCases, failureCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure]
