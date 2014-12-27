@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.1.2.1] (Rahul Gopinath)
+  * Fix minor tagging issue
 ## [0.1.2.0] (Rahul Gopinath)
   * Update usage docs
   * Add hspec test framework support
