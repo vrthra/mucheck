@@ -1,8 +1,8 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
-module MuCheck.Run.QuickCheck where
+module Test.MuCheck.Run.QuickCheck where
 import qualified Test.QuickCheck.Test as Qc
-import MuCheck.Run.Common
-import MuCheck.Utils.Print (showA, showAS)
+import Test.MuCheck.Run.Common
+import Test.MuCheck.Utils.Print (showA, showAS)
 
 import Data.Typeable
 import Data.List((\\))

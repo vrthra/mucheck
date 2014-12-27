@@ -1,5 +1,5 @@
-module MuCheck.Utils.Print where
-
+module Test.MuCheck.Utils.Print where
+import Debug.Trace
 import Data.List(intercalate)
 
 -- | simple wrapper for adding a % at the end.
@@ -13,3 +13,4 @@ showAS = intercalate "\n"
 showA :: Show a => [a] -> String
 showA =  showAS . map show
 
+tt v = trace (">" ++ (show v)) v

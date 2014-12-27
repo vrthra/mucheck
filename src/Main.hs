@@ -2,16 +2,16 @@ module Main where
 import System.Environment (getArgs, withArgs)
 import Control.Monad (void)
 
-import MuCheck.MuOp
-import MuCheck.Config
-import MuCheck.Mutation
-import MuCheck.Operators
-import MuCheck.Utils.Common
-import MuCheck.Utils.Print
-import MuCheck.Interpreter
-import MuCheck.Run.QuickCheck
-import MuCheck.Run.HUnit
-import MuCheck.Run.Hspec
+import Test.MuCheck.MuOp
+import Test.MuCheck.Config
+import Test.MuCheck.Mutation
+import Test.MuCheck.Operators
+import Test.MuCheck.Utils.Common
+import Test.MuCheck.Utils.Print
+import Test.MuCheck.Interpreter
+import Test.MuCheck.Run.QuickCheck
+import Test.MuCheck.Run.HUnit
+import Test.MuCheck.Run.Hspec
 
 process :: String -> String -> String -> String -> [String] -> IO ()
 process t fn file modulename args = do

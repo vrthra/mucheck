@@ -1,14 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
 -- | SYB functions
-module MuCheck.Utils.Syb ( selectMany
+module Test.MuCheck.Utils.Syb ( selectMany
                      , selectOne
                      , relevantOps
                      , once
                      , once') where
 
 import Data.Generics (Data, Typeable, GenericM, gmapMo, everything, mkQ, mkMp)
-import MuCheck.MuOp (mkMp', MuOp)
-import MuCheck.Utils.Common (safeHead)
+import Test.MuCheck.MuOp (mkMp', MuOp)
+import Test.MuCheck.Utils.Common (safeHead)
 import Control.Monad (MonadPlus, mplus)
 import Data.Maybe(fromMaybe, isJust)
 

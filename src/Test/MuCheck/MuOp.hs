@@ -1,4 +1,4 @@
-module MuCheck.MuOp (MuOp
+module Test.MuCheck.MuOp (MuOp
           , (==>)
           , (==>*)
           , (*==>*)
@@ -18,6 +18,7 @@ data MuOp = N  (Name, Name)
           | D  (Decl, Decl)
           | L  (Literal, Literal)
           | G  (GuardedRhs, GuardedRhs)
+  deriving Eq
 
 -- boilerplate code
 mkMp' (N (s,t))  = G.mkMp (s ~~> t)

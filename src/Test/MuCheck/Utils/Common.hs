@@ -1,4 +1,4 @@
-module MuCheck.Utils.Common where
+module Test.MuCheck.Utils.Common where
 
 import System.FilePath (splitExtension)
 import System.Random

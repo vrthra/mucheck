@@ -1,7 +1,7 @@
-module MuCheck.Config where
+module Test.MuCheck.Config where
 
-import MuCheck.MuOp
-import MuCheck.Operators
+import Test.MuCheck.MuOp
+import Test.MuCheck.Operators
 
 data GenerationMode
   = FirstOrderOnly

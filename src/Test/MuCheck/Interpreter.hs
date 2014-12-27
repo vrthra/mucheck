@@ -1,5 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
-module MuCheck.Interpreter where
+module Test.MuCheck.Interpreter where
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans ( liftIO )
@@ -7,37 +7,31 @@ import qualified Test.QuickCheck.Test as Qc
 import qualified Test.HUnit as HUnit
 import qualified Test.Hspec.Core.Runner as Hspec
 import Data.Typeable
-import MuCheck.Utils.Print (showA, showAS, (./.))
+import Test.MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either (partitionEithers, rights)
 import Data.List(groupBy, sortBy)
 import Data.Function (on)
 
-import MuCheck.Run.Common
-import MuCheck.Run.QuickCheck
-import MuCheck.Run.HUnit
-import MuCheck.Run.Hspec
+import Test.MuCheck.Run.Common
+import Test.MuCheck.Run.QuickCheck
+import Test.MuCheck.Run.HUnit
+import Test.MuCheck.Run.Hspec
 
 -- | run quickcheck test suite on mutants
--- @
--- >>> numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
--- >>> checkQuickCheckOnMutants (take numMutants $ genFileNames --  "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./quickcheck.log"
--- @
+-- > numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
+-- > checkQuickCheckOnMutants (take numMutants $ genFileNames --  "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./quickcheck.log"
 checkQuickCheckOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.Result]
 checkQuickCheckOnMutants = mutantCheckSummary
 
 -- | run hunit test suite on mutants
--- @
--- >>> numMutants <- genMutants "qsort" "Examples/HUnitTest.hs"
--- >>> checkHUnitOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./hunit.log"
--- @
+-- > numMutants <- genMutants "qsort" "Examples/HUnitTest.hs"
+-- > checkHUnitOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./hunit.log"
 checkHUnitOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
 checkHUnitOnMutants = mutantCheckSummary
 
 -- | run hspec test suite on mutants
--- @
--- >>> numMutants <- genMutants "qsort" "Examples/HspecTest.hs"
--- >>> checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec (with \"qsort1\")"] "./hspec.log"
--- @
+-- > numMutants <- genMutants "qsort" "Examples/HspecTest.hs"
+-- > checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec (with \"qsort1\")"] "./hspec.log"
 checkHspecOnMutants :: [String] -> String -> [String] -> String -> IO [Hspec.Summary]
 checkHspecOnMutants = mutantCheckSummary
 
@@ -77,9 +71,7 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
 
 
 -- | Run one test suite on all mutants
--- @
--- >>> t = runInterpreter (evalMethod "Examples/QuickCheckTest.hs" "Examples.QuickCheckTest" "quickCheckResult idEmp")
--- @
+-- > t = runInterpreter (evalMethod "Examples/QuickCheckTest.hs" "Examples.QuickCheckTest" "quickCheckResult idEmp")
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
   where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
                                     I.runInterpreter (evalMethod file topModule evalStr)

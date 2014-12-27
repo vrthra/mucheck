@@ -1,8 +1,8 @@
-module MuCheck.Utils.PrintSpec (main, spec) where
+module Test.MuCheck.Utils.PrintSpec (main, spec) where
 
 import Test.Hspec
 import Test.QuickCheck
-import MuCheck.Utils.Print
+import Test.MuCheck.Utils.Print
 
 main :: IO ()
 main = hspec spec

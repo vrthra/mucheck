@@ -1,8 +1,8 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
-module MuCheck.Run.Hspec where
+module Test.MuCheck.Run.Hspec where
 import qualified Test.Hspec.Core.Runner as Hspec
-import MuCheck.Run.Common
-import MuCheck.Utils.Print (showA, showAS)
+import Test.MuCheck.Run.Common
+import Test.MuCheck.Utils.Print (showA, showAS)
 
 import Data.Typeable
 import Data.Either (partitionEithers)

@@ -1,7 +1,6 @@
 {-# LANGUAGE ImpredicativeTypes #-}
--- Mutation happens here.
-
-module MuCheck.Mutation where
+-- | Mutation happens here.
+module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
         Stmt(Qualifier), Module(Module), ModuleName(..),
@@ -15,11 +14,11 @@ import Control.Monad (liftM, zipWithM)
 import System.Random
 import Data.Time.Clock.POSIX
 
-import MuCheck.MuOp
-import MuCheck.Utils.Syb
-import MuCheck.Utils.Common
-import MuCheck.Operators
-import MuCheck.Config
+import Test.MuCheck.MuOp
+import Test.MuCheck.Utils.Syb
+import Test.MuCheck.Utils.Common
+import Test.MuCheck.Operators
+import Test.MuCheck.Config
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
@@ -91,10 +90,14 @@ permMatches :: Decl -> [MuOp]
 permMatches d@(FunBind ms) = d ==>* map FunBind (permutations ms \\ [ms])
 permMatches _  = []
 
+-- | generates transformations that removes one pattern match from a function
+-- definition.
 removeOnePMatch :: Decl -> [MuOp]
+removeOnePMatch d@(FunBind [x]) = []
 removeOnePMatch d@(FunBind ms) = d ==>* map FunBind (removeOneElem ms \\ [ms])
 removeOnePMatch _  = []
 
+-- | generate sub-arrays with one less element
 removeOneElem :: Eq t => [t] -> [[t]]
 removeOneElem l = choose l (length l - 1)
 

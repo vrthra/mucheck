@@ -1,7 +1,16 @@
 # Changelog
 
+## [0.1.3.0] (Rahul Gopinath)
+  * Migrate mucheck to Test namespace
+  * Add more tests
+  * Fix eamples in docs
+
+## [0.1.2.2] (Rahul Gopinath)
+  * Handle single pattern function definitions correctly.
+
 ## [0.1.2.1] (Rahul Gopinath)
   * Fix minor tagging issue
+
 ## [0.1.2.0] (Rahul Gopinath)
   * Update usage docs
   * Add hspec test framework support

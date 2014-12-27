@@ -1,4 +1,4 @@
-module MuCheck.Run.Common where
+module Test.MuCheck.Run.Common where
 
 import qualified Language.Haskell.Interpreter as I
 import Data.Typeable
