@@ -35,7 +35,7 @@ Note that using MuCheck with Hspec you can also choose which groups to run. It i
 ```
 Using custom list of mutators
 ```
-genMut funcname filename = genMutantsWith (stdArgs {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
+genMut funcname filename = genMutantsWith (defaultConfig {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
 ```
 
 With Cabal Sandbox:

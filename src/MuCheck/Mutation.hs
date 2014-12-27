@@ -19,27 +19,31 @@ import MuCheck.MuOp
 import MuCheck.Utils.Syb
 import MuCheck.Utils.Common
 import MuCheck.Operators
-import MuCheck.StdArgs
+import MuCheck.Config
 
--- entry point.
-genMutants = genMutantsWith stdArgs
+-- | The `genMutants` function is a wrapper to genMutantsWith with standard
+-- configuraton
+genMutants = genMutantsWith defaultConfig
 
-genMutantsWith :: StdArgs -> String -> FilePath -> IO Int
+-- | The `genMutantsWith` function takes configuration function to mutate,
+-- filename the function is defined in, and produces mutants in the same
+-- directory as the filename, and returns the number of mutants produced.
+genMutantsWith :: Config -> String -> FilePath -> IO Int
 genMutantsWith args funcname filename  = liftM length $ do
     ast <- getASTFromFile filename
-    now <- round `fmap` getPOSIXTime
+    g <- liftM (mkStdGen . round) getPOSIXTime
     let f = func funcname ast
-        g = mkStdGen now
+
+        ops, swapOps, valOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
         ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
         swapOps = sampleF g (doMutatePatternMatches args) $ permMatches f ++ removeOnePMatch f
-
         valOps = sampleF g (doMutateValues args) $ selectIntOps f
         ifElseNegOps = sampleF g (doNegateIfElse args) $ selectIfElseBoolNegOps f
         guardedBoolNegOps = sampleF g (doNegateGuards args) $ selectGuardedBoolNegOps f
 
+        patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
         allMutants = nub $ patternMatchMutants ++ operatorMutants
 
-        patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
         patternMatchMutants = mutatesN swapOps f fstOrder
         ifElseNegMutants = mutatesN ifElseNegOps f fstOrder
         guardedNegMutants = mutatesN guardedBoolNegOps f fstOrder
@@ -58,9 +62,9 @@ genMutantsWith args funcname filename  = liftM length $ do
   where fstOrder = 1 -- first order
         getASTFromFile filename = liftM parseModuleFromFile $ readFile filename
 
--- Mutating a function's code using a bunch of mutation operators
--- NOTE: In all the three mutate functions, we assume working
--- with functions declaration.
+-- | Mutating a function's code using a bunch of mutation operators
+-- (In all the three mutate functions, we assume working
+-- with functions declaration.)
 mutates :: [MuOp] -> Decl -> [Decl]
 mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
 
@@ -69,14 +73,11 @@ mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
 mutatesN ops m 1 = concat [mutate op m | op <- ops ]
 mutatesN ops m c =  concat [mutatesN ops m 1 | m <- mutatesN ops m (c-1)]
 
--- given a function, generate all mutants after applying applying 
--- op once (op might be applied at different places). E.g.:
+-- | Given a function, generate all mutants after applying applying 
+-- op once (op might be applied at different places).E.g.:
 -- op = "<" ==> ">" and there are two instances of "<"
 mutate :: MuOp -> Decl -> [Decl]
 mutate op m = once (mkMp' op) m \\ [m]
-
-isFunction :: Name -> GenericQ Bool
-isFunction (Ident n) = False `mkQ` isFunctionD n
 
 isFunctionD :: String -> Decl -> Bool
 isFunctionD n (FunBind (Match _ (Ident n') _ _ _ _ : _)) = n == n'
@@ -84,7 +85,7 @@ isFunctionD n (FunBind (Match _ (Symbol n') _ _ _ _ : _)) = n == n'
 isFunctionD n (PatBind _ (PVar (Ident n')) _ _)          = n == n'
 isFunctionD _ _                                  = False
 
--- generate all operators for permutating pattern matches in
+-- | Generate all operators for permutating pattern matches in
 -- a function. We don't deal with permutating guards and case for now.
 permMatches :: Decl -> [MuOp]
 permMatches d@(FunBind ms) = d ==>* map FunBind (permutations ms \\ [ms])
@@ -98,12 +99,17 @@ removeOneElem :: Eq t => [t] -> [[t]]
 removeOneElem l = choose l (length l - 1)
 
 -- AST/module-related operations
--- String is the content of the file
+
+-- | Parse a module. Input is the content of the file
 parseModuleFromFile :: String -> Module
 parseModuleFromFile inp = fromParseResult $ parseFileContents inp
 
 getDecls :: Module -> [Decl]
 getDecls (Module _ _ _ _ _ _ decls) = decls
+
+{-
+isFunction :: Name -> GenericQ Bool
+isFunction (Ident n) = False `mkQ` isFunctionD n
 
 extractStrings :: [Match] -> [String] 
 extractStrings [] = []
@@ -115,11 +121,12 @@ getFuncNames [] = []
 getFuncNames (FunBind m:xs) = extractStrings m ++ getFuncNames xs
 getFuncNames (_:xs) = getFuncNames xs
   
-putDecls :: Module -> [Decl] -> Module
-putDecls (Module a b c d e f _) decls = Module a b c d e f decls
-
 getName :: Module -> String
 getName (Module _ (ModuleName name) _ _ _ _ _) = name
+-}
+
+putDecls :: Module -> [Decl] -> Module
+putDecls (Module a b c d e f _) decls = Module a b c d e f decls
 
 -- Define all operations on a value
 selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
@@ -139,13 +146,13 @@ selectIntOps m = selectValOps isInt [
   where isInt (Int _) = True
         isInt _       = False
 
--- negating boolean in if/else statements
+-- | negating boolean in if/else statements
 selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3] m
   where isIf If{} = True
         isIf _    = False
 
--- negating boolean in Guards
+-- | negating boolean in Guards
 selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps' isGuardedRhs negateGuardedRhs m
   where isGuardedRhs GuardedRhs{} = True

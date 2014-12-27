@@ -3,7 +3,7 @@ import System.Environment (getArgs, withArgs)
 import Control.Monad (void)
 
 import MuCheck.MuOp
-import MuCheck.StdArgs
+import MuCheck.Config
 import MuCheck.Mutation
 import MuCheck.Operators
 import MuCheck.Utils.Common
