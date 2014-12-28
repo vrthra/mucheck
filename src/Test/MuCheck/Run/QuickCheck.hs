@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
+-- | Module for using quickcheck properties
 module Test.MuCheck.Run.QuickCheck where
 import qualified Test.QuickCheck.Test as Qc
 import Test.MuCheck.Run.Common

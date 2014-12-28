@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
+-- | Module for using HUnit tests
 module Test.MuCheck.Run.HUnit where
 import qualified Test.HUnit as HUnit
 import Test.MuCheck.Run.Common

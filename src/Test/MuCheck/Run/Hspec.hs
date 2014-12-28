@@ -1,4 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
+-- | Module for using Hspec tests
 module Test.MuCheck.Run.Hspec where
 import qualified Test.Hspec.Core.Runner as Hspec
 import Test.MuCheck.Run.Common
