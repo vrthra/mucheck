@@ -9,16 +9,6 @@ main = hspec spec
 
 spec :: Spec
 spec = do
-  describe "safeHead" $ do
-    it "gets Nothing if empty list" $ do
-      MUC.safeHead ([]::[Int]) `shouldBe` (Nothing :: Maybe Int)
-
-    it "gets Just head if list contains elements" $ do
-      MUC.safeHead [1] `shouldBe` (Just 1 :: Maybe Int)
-
-    it "gets Just head if list contains elements - property" $
-      property $ \x xs -> MUC.safeHead (x:xs) == (Just x :: Maybe Int)
-
   describe "replace" $ do
     it "if given empty list dont do any thing" $ do
       MUC.replace (1,2) ([]::[Int]) `shouldBe` ([] :: [Int])

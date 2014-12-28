@@ -2,6 +2,7 @@
 
 ## [] (Rahul Gopinath)
   * Better documentation
+  * Add tests for SYB once
 
 ## [0.1.3.0] (Rahul Gopinath)
   * Migrate mucheck to Test namespace

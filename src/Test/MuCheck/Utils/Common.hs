@@ -28,11 +28,6 @@ replace (o,n) lst = map replaceit lst
           | v == o = n
           | otherwise = v
 
--- | The `safeHead` function safely extracts head of a list using Maybe
-safeHead :: [a] -> Maybe a
-safeHead [] = Nothing
-safeHead (x:xs) = Just x
-
 -- | The `sample` function takes a random generator and chooses a random sample
 -- subset of given size.
 sample :: (RandomGen g, Num n, Eq n) => g -> n -> [t] -> [t]

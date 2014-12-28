@@ -48,6 +48,7 @@ mucheck t fn file modulename args = do
     _ -> error "Unexpected test type"
 
 -- | run quickcheck test suite on mutants
+--
 -- > numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
 -- > checkQuickCheckOnMutants (take numMutants $ genFileNames
 -- >  "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./quickcheck.log"
@@ -55,12 +56,14 @@ checkQuickCheckOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.R
 checkQuickCheckOnMutants = mutantCheckSummary
  
 -- | run hunit test suite on mutants
+--
 -- > numMutants <- genMutants "qsort" "Examples/HUnitTest.hs"
 -- > checkHUnitOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./hunit.log"
 checkHUnitOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
 checkHUnitOnMutants = mutantCheckSummary
 
 -- | run hspec test suite on mutants
+--
 -- > numMutants <- genMutants "qsort" "Examples/HspecTest.hs"
 -- > checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec (with \"qsort1\")"] "./hspec.log"
 checkHspecOnMutants :: [String] -> String -> [String] -> String -> IO [Hspec.Summary]

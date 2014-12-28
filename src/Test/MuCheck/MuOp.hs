@@ -4,6 +4,7 @@ module Test.MuCheck.MuOp (MuOp
           , (*==>*)
           , (~~>)
           , mkMp'
+          , same
           ) where
 
 import Language.Haskell.Exts (Name, QName, QOp, Exp, Literal, GuardedRhs, Decl)
@@ -20,6 +21,17 @@ data MuOp = N  (Name, Name)
   deriving Eq
 
 -- boilerplate code
+
+-- | The function `same` applies on a `MuOP` determining if transformation is
+-- between same values.
+same :: MuOp -> Bool
+same (N (a,b)) = a == b
+same (QN (a,b)) = a == b
+same (E (a,b)) = a == b
+same (D (a,b)) = a == b
+same (L (a,b)) = a == b
+same (G (a,b)) = a == b
+
 mkMp' (N (s,t))  = G.mkMp (s ~~> t)
 mkMp' (QN (s,t)) = G.mkMp (s ~~> t)
 mkMp' (QO (s,t)) = G.mkMp (s ~~> t)
@@ -50,8 +62,9 @@ class Mutable a where
 (*==>*) :: Mutable a => [a] -> [a] -> [MuOp]
 xs *==>* ys = concatMap (==>* ys) xs
 
+-- we handle x ~~> x separately
 (~~>) :: (MonadPlus m, Eq a) => a -> a -> (a -> m a)
-x ~~> y = \z -> if z == x && x /= y then return y else mzero
+x ~~> y = \z -> if z == x then return y else mzero
 
 -- instances
 

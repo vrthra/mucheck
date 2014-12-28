@@ -11,6 +11,7 @@ import Data.List((\\))
 
 deriving instance Typeable Hspec.Summary
 
+-- | Summarizable instance of `Hspec.Summary`
 instance Summarizable Hspec.Summary where
   testSummary mutantFiles results = TSum {
     tsum_numMutants = r,

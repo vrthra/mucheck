@@ -11,6 +11,7 @@ import Data.Either (partitionEithers)
 
 deriving instance Typeable Qc.Result
 
+-- | Summarizable instance of `QuickCheck.Result`
 instance Summarizable Qc.Result where
   testSummary mutantFiles results = TSum {
     tsum_numMutants = r,

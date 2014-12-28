@@ -1,37 +1,23 @@
 {-# LANGUAGE RankNTypes #-}
 -- | SYB functions
-module Test.MuCheck.Utils.Syb ( selectMany
-                     , selectOne
-                     , relevantOps
-                     , once
-                     , once') where
+module Test.MuCheck.Utils.Syb (relevantOps, once) where
 
-import Data.Generics (Data, Typeable, GenericM, gmapMo, everything, mkQ, mkMp)
-import Test.MuCheck.MuOp (mkMp', MuOp)
-import Test.MuCheck.Utils.Common (safeHead)
+import Data.Generics (Data, GenericM, gmapMo)
+import Test.MuCheck.MuOp (mkMp', MuOp, same)
 import Control.Monad (MonadPlus, mplus)
-import Data.Maybe(fromMaybe, isJust)
+import Data.Maybe(isJust)
 
 -- | apply a mutating function on a piece of code one at a time
+-- like somewhere (from so)
 once :: MonadPlus m => GenericM m -> GenericM m
 once f x = f x `mplus` gmapMo (once f) x
 
-once' :: (forall a. Data a => a -> Maybe a) -> (forall a. Data a => a -> a)
-once' f x = fromMaybe x $ once f x
-
--- | select all code components satisfying a certain predicate
-selectMany :: (Data a, Typeable b) => (b -> Bool) -> a -> [b]
-selectMany f = everything (++) ([] `mkQ` keep f)
-   where keep fn x = [x | fn x]
-
--- | special case of selectMany, which selects the first components satisfying
--- a predicate
-selectOne :: (Typeable a, Data a1) => (a -> Bool) -> a1 -> Maybe a
-selectOne f p = safeHead $ selectMany f p
-
--- | selecting all relevant ops
+-- | The function `relevantOps` does two filters. For the first, it
+-- removes spurious transformations like "Int 1 ~~> Int 1". Secondly, it
+-- tries to apply the transformation to the given program on some element 
+-- if it does not succeed, then we discard that transformation.
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
-relevantOps m mlst = filter (relevantOp m) mlst
+relevantOps m oplst = filter (relevantOp m) $ filter (not . same) oplst
   -- check if an operator can be applied to a program
   where relevantOp m op = isJust $ once (mkMp' op) m
 

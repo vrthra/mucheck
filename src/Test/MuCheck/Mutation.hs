@@ -8,7 +8,7 @@ import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
         Pat(PVar), Match(Match), GuardedRhs(GuardedRhs), 
         prettyPrint, fromParseResult, parseFileContents)
 import Data.Maybe (fromJust)
-import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp)
+import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations)
 import Control.Monad (liftM, zipWithM)
 import System.Random
@@ -31,7 +31,7 @@ genMutantsWith :: Config -> String -> FilePath -> IO Int
 genMutantsWith args funcname filename  = liftM length $ do
     ast <- getASTFromFile filename
     g <- liftM (mkStdGen . round) getPOSIXTime
-    let f = func funcname ast
+    let f = getFunc funcname ast
 
         ops, swapOps, valOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
         ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
@@ -50,10 +50,10 @@ genMutantsWith args funcname filename  = liftM length $ do
             FirstOrderOnly -> mutatesN ops f fstOrder
             _              -> mutates ops f
 
-        func fname ast = fromJust $ selectOne (isFunctionD fname) ast
+        getFunc fname ast = head $ listify (isFunctionD fname) ast
         programMutants ast =  map (putDecls ast) $ mylst ast
         mylst ast = [myfn ast x | x <- take (maxNumMutants args) allMutants]
-        myfn ast fn = replace (func funcname ast,fn) (getDecls ast)
+        myfn ast fn = replace (getFunc funcname ast,fn) (getDecls ast)
 
     case ops ++ swapOps of
       [] -> return [] --  putStrLn "No applicable operator exists!"
@@ -78,6 +78,7 @@ mutatesN ops m c =  concat [mutatesN ops m 1 | m <- mutatesN ops m (c-1)]
 mutate :: MuOp -> Decl -> [Decl]
 mutate op m = once (mkMp' op) m \\ [m]
 
+-- | is the parsed expression the function we are looking for?
 isFunctionD :: String -> Decl -> Bool
 isFunctionD n (FunBind (Match _ (Ident n') _ _ _ _ : _)) = n == n'
 isFunctionD n (FunBind (Match _ (Symbol n') _ _ _ _ : _)) = n == n'
@@ -110,35 +111,17 @@ parseModuleFromFile inp = fromParseResult $ parseFileContents inp
 getDecls :: Module -> [Decl]
 getDecls (Module _ _ _ _ _ _ decls) = decls
 
-{-
-isFunction :: Name -> GenericQ Bool
-isFunction (Ident n) = False `mkQ` isFunctionD n
-
-extractStrings :: [Match] -> [String] 
-extractStrings [] = []
-extractStrings (Match _ (Symbol name) _ _ _ _:xs) = name : extractStrings xs
-extractStrings (Match _ (Ident name) _ _ _ _:xs) = name : extractStrings xs
-
-getFuncNames :: [Decl] -> [String]
-getFuncNames [] = []
-getFuncNames (FunBind m:xs) = extractStrings m ++ getFuncNames xs
-getFuncNames (_:xs) = getFuncNames xs
-  
-getName :: Module -> String
-getName (Module _ (ModuleName name) _ _ _ _ _) = name
--}
-
 putDecls :: Module -> [Decl] -> Module
 putDecls (Module a b c d e f _) decls = Module a b c d e f decls
 
 -- Define all operations on a value
 selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
 selectValOps pred fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
-  where vals = nub $ selectMany pred m
+  where vals = nub $ listify pred m
 
 selectValOps' :: (Data a, Eq a, Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> a -> [MuOp]
 selectValOps' pred f m = concatMap (\x -> x ==>* f x) vals
-  where vals = selectMany pred m
+  where vals = listify pred m
 
 selectIntOps :: (Data a, Eq a) => a -> [MuOp]
 selectIntOps m = selectValOps isInt [

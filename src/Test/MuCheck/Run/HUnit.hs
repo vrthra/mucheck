@@ -11,6 +11,7 @@ import Data.Either (partitionEithers)
 
 deriving instance Typeable HUnit.Counts
 
+-- | Summarizable instance of `HUnit.Counts`
 instance Summarizable HUnit.Counts where
   testSummary mutantFiles results = TSum {
     tsum_numMutants = r,

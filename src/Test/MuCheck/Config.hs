@@ -2,7 +2,7 @@
 module Test.MuCheck.Config where
 
 import Test.MuCheck.MuOp
-import Test.MuCheck.Operators
+import Test.MuCheck.Operators (allOps)
 
 data GenerationMode
   = FirstOrderOnly
@@ -14,7 +14,9 @@ data GenerationMode
 -- no mutants are picked for that kind. Any fraction in between causes that
 -- many mutants to be picked randomly from the available pool
 
-data Config = Config { muOps :: [MuOp]
+data Config = Config {
+-- | Mutation operators on operator or function replacement
+  muOps :: [MuOp]
 -- | Mutate pattern matches for functions?
 -- for example
 --
