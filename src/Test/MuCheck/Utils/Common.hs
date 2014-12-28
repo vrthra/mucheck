@@ -1,3 +1,4 @@
+-- | Common functions used by MuCheck
 module Test.MuCheck.Utils.Common where
 
 import System.FilePath (splitExtension)

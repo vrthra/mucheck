@@ -1,5 +1,10 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
-module Test.MuCheck.Interpreter where
+-- | The entry point for mucheck
+module Test.MuCheck.Interpreter (
+  checkQuickCheckOnMutants,
+  checkHUnitOnMutants,
+  checkHspecOnMutants
+  ) where
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans ( liftIO )
@@ -19,7 +24,8 @@ import Test.MuCheck.Run.Hspec
 
 -- | run quickcheck test suite on mutants
 -- > numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
--- > checkQuickCheckOnMutants (take numMutants $ genFileNames --  "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./quickcheck.log"
+-- > checkQuickCheckOnMutants (take numMutants $ genFileNames
+-- >  "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./quickcheck.log"
 checkQuickCheckOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.Result]
 checkQuickCheckOnMutants = mutantCheckSummary
 
@@ -71,12 +77,16 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
 
 
 -- | Run one test suite on all mutants
--- > t = runInterpreter (evalMethod "Examples/QuickCheckTest.hs" "Examples.QuickCheckTest" "quickCheckResult idEmp")
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
   where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
                                     I.runInterpreter (evalMethod file topModule evalStr)
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
+--
+-- > t = I.runInterpreter (evalMethod
+-- >        "Examples/QuickCheckTest.hs"
+-- >        "Examples.QuickCheckTest"
+-- >        "quickCheckResult idEmp)
 evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> String -> m (String, t)
 evalMethod fileName topModule evalStr = do
   I.loadModules [fileName]

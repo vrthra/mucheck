@@ -1,10 +1,9 @@
 module Test.MuCheck.MuOp (MuOp
-          , (==>)
+          , Mutable(..)
           , (==>*)
           , (*==>*)
           , (~~>)
           , mkMp'
-          , Mutable
           ) where
 
 import Language.Haskell.Exts (Name, QName, QOp, Exp, Literal, GuardedRhs, Decl)

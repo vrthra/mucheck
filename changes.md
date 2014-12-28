@@ -1,5 +1,8 @@
 # Changelog
 
+## [] (Rahul Gopinath)
+  * Better documentation
+
 ## [0.1.3.0] (Rahul Gopinath)
   * Migrate mucheck to Test namespace
   * Add more tests
