@@ -1,7 +1,5 @@
 # TODO list
 
-* Fix pattern guards swap mutants to reduce mutants by only swapping between
-  different top level constructors
 * Add a json option for stdargs
 * Add a funtion to filter mutants rather than just a fraction
 * Add support for other test frameworks
