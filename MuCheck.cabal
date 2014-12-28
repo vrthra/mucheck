@@ -46,7 +46,8 @@ executable mucheck
   hs-source-dirs:   src
 
 library
-  exposed-modules:  Test.MuCheck.MuOp,
+  exposed-modules:  Test.MuCheck,
+                    Test.MuCheck.MuOp,
                     Test.MuCheck.Config,
                     Test.MuCheck.Interpreter,
                     Test.MuCheck.Mutation,

@@ -13,3 +13,4 @@ idEmpProp xs = qsort xs == qsort (qsort xs)
 revProp xs = qsort xs == qsort (reverse xs)
 
 modelProp xs = qsort xs == sort xs
+

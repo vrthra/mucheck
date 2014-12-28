@@ -1,16 +1,9 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
 -- | The entry point for mucheck
-module Test.MuCheck.Interpreter (
-  checkQuickCheckOnMutants,
-  checkHUnitOnMutants,
-  checkHspecOnMutants
-  ) where
+module Test.MuCheck.Interpreter (mutantCheckSummary) where
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans ( liftIO )
-import qualified Test.QuickCheck.Test as Qc
-import qualified Test.HUnit as HUnit
-import qualified Test.Hspec.Core.Runner as Hspec
 import Data.Typeable
 import Test.MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either (partitionEithers, rights)
@@ -21,25 +14,6 @@ import Test.MuCheck.Run.Common
 import Test.MuCheck.Run.QuickCheck
 import Test.MuCheck.Run.HUnit
 import Test.MuCheck.Run.Hspec
-
--- | run quickcheck test suite on mutants
--- > numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
--- > checkQuickCheckOnMutants (take numMutants $ genFileNames
--- >  "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./quickcheck.log"
-checkQuickCheckOnMutants :: [String] -> String -> [String] -> String -> IO [Qc.Result]
-checkQuickCheckOnMutants = mutantCheckSummary
-
--- | run hunit test suite on mutants
--- > numMutants <- genMutants "qsort" "Examples/HUnitTest.hs"
--- > checkHUnitOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./hunit.log"
-checkHUnitOnMutants :: [String] -> String -> [String] -> String -> IO [HUnit.Counts]
-checkHUnitOnMutants = mutantCheckSummary
-
--- | run hspec test suite on mutants
--- > numMutants <- genMutants "qsort" "Examples/HspecTest.hs"
--- > checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec (with \"qsort1\")"] "./hspec.log"
-checkHspecOnMutants :: [String] -> String -> [String] -> String -> IO [Hspec.Summary]
-checkHspecOnMutants = mutantCheckSummary
 
 -- | Given the list of tests suites to check, run one test suite at a time on
 -- all mutants.
