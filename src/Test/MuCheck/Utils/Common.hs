@@ -52,3 +52,16 @@ remElt :: Int -> [a] -> [a]
 remElt idx xs = front ++ ack
   where (front,b:ack) = splitAt idx xs
 
+-- | The `swapElts` function swaps two elements in a list given their indices
+swapElts :: Int -> Int -> [t] -> [t]
+swapElts i j ls = [get k x | (k, x) <- zip [0..length ls - 1] ls]
+  where get k x | k == i = ls !! j
+                | k == j = ls !! i
+                | otherwise = x
+
+-- | The `genSwapped` generates a list of lists where each element has been
+-- swapped by another
+genSwapped :: [t] -> [[t]]
+genSwapped lst = map (\(x:y:_) -> swapElts x y lst) swaplst
+  where swaplst = choose [0..length lst - 1] 2
+
