@@ -14,9 +14,11 @@ import Test.MuCheck.Utils.Common
 import Test.MuCheck.Utils.Print
 import Test.MuCheck.Interpreter (mutantCheckSummary)
 import Test.MuCheck.Run.QuickCheck
+import Test.MuCheck.Run.SmallCheck
 import Test.MuCheck.Run.HUnit
 import Test.MuCheck.Run.Hspec
 
+import qualified Test.SmallCheck
 import qualified Test.QuickCheck.Test as Qc
 import qualified Test.HUnit as HUnit
 import qualified Test.Hspec.Core.Runner as Hspec
@@ -43,6 +45,7 @@ mucheck t fn file modulename args = do
       fn f = void $ f muts modulename args l
   case t of
     "qcheck" -> fn checkQuickCheckOnMutants
+    "scheck" ->  fn checkSmallCheckOnMutants
     "hspec" ->  fn checkHspecOnMutants
     "hunit" ->  fn checkHUnitOnMutants
     _ -> error "Unexpected test type"
@@ -69,3 +72,10 @@ checkHUnitOnMutants = mutantCheckSummary
 checkHspecOnMutants :: [String] -> String -> [String] -> String -> IO [Hspec.Summary]
 checkHspecOnMutants = mutantCheckSummary
 
+-- | run smallcheck test suite on mutants
+--
+-- > numMutants <- genMutants "qsort" "Examples/SmallCheckTest.hs"
+-- > checkSmallCheckOnMutants (take numMutants $ genFileNames "Examples/SmallChecTest.hs") "Examples.SmallCheckTest" ["smallCheckM 2 revProp"] "./scheck.log"
+
+checkSmallCheckOnMutants :: [String] -> String -> [String] -> String -> IO [SmallSummary]
+checkSmallCheckOnMutants = mutantCheckSummary

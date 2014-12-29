@@ -4,16 +4,20 @@ module Test.MuCheck.Interpreter (mutantCheckSummary) where
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans ( liftIO )
+import Control.Exception
 import Data.Typeable
 import Test.MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either (partitionEithers, rights)
 import Data.List(groupBy, sortBy)
 import Data.Function (on)
+import Test.SmallCheck
+import Debug.Trace
 
 import Test.MuCheck.Run.Common
 import Test.MuCheck.Run.QuickCheck
 import Test.MuCheck.Run.HUnit
 import Test.MuCheck.Run.Hspec
+import Test.MuCheck.Utils.Print
 
 -- | Given the list of tests suites to check, run one test suite at a time on
 -- all mutants.
@@ -51,16 +55,19 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
 
 
 -- | Run one test suite on all mutants
+runCodeOnMutants :: Typeable t => [String] -> String -> String -> IO [Either I.InterpreterError (String, t)]
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
   where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
                                     I.runInterpreter (evalMethod file topModule evalStr)
+        handleErr :: IO (Either I.InterpreterError (String, t1)) -> IO (Either I.InterpreterError (String, t1))
+        handleErr e = e
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 --
 -- > t = I.runInterpreter (evalMethod
 -- >        "Examples/QuickCheckTest.hs"
 -- >        "Examples.QuickCheckTest"
--- >        "quickCheckResult idEmp)
+-- >        "quickCheck idEmp)
 evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> String -> m (String, t)
 evalMethod fileName topModule evalStr = do
   I.loadModules [fileName]
