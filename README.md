@@ -3,52 +3,60 @@ To begin:
 (1) Install required packages:
 
 ```
-cabal update
-cabal install cabal-install
-cabal install syb
-cabal install haskell-src-exts
-cabal install hint
+$ cabal update
+$ cabal install cabal-install
+$ cabal install --only-dependencies --enable-tests
 ```
-(2) Load Main.hs to Ghci and run the following commmands.
+(2) Install one of the adapter packages
 
-For QuickCheck
-```
-*Main> numMutants <- genMutants "qsort" "Examples/QuickCheckTest.hs"
+* [mucheck-quickcheck](https://bitbucket.org/osu-testing/mucheck-quickcheck)
+* [mucheck-hunit](https://bitbucket.org/osu-testing/mucheck-hunit)
+* [mucheck-hspec](https://bitbucket.org/osu-testing/mucheck-hspec)
 
-*Main> checkQuickCheckOnMutants (take numMutants $ genFileNames "Examples/QuickCheckTest.hs") "Examples.QuickCheckTest" ["quickCheckResult idEmpProp", "quickCheckResult revProp", "quickCheckResult modelProp"] "./test.log"
+(3) Execute the adapter help
 ```
-For HUnit
+$ $dist/mucheck-quickcheck -h
+$ $dist/mucheck-hunit -h
+$ $dist/mucheck-hspec -h
 ```
-*Main> numMutants <- genMutants "qsort" "Examples/HUnitTest.hs"
+Use the example given.
 
-*Main> checkHUnitOnMutants (take numMutants $ genFileNames "Examples/HUnitTest.hs") "Examples.HUnitTest" ["runTestTT tests"] "./test.log"
-```
-For Hspec: 
-```
-*Main> numMutants <- genMutants "qsort" "Examples/HspecTest.hs"
+# As library
 
-*Main> checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTest.hs") "Examples.HspecTest" ["spec"] "./test.log"
+## Quickcheck
 ```
-Note that using MuCheck with Hspec you can also choose which groups to run. It is a little more involved than QuickCheck. You will need to define the `with` function or something similar if you wish to select specific groups to run. See `Examples/HspecTestWith.hs` for a simple example.
-```
-*Main> checkHspecOnMutants (take numMutants $ genFileNames "Examples/HspecTestWith.hs") "Examples.HspecTestWith" ["spec (with \"qsort1\")"] "./test.log"
-```
-Using custom list of mutators
-```
-genMut funcname filename = genMutantsWith (defaultConfig {muOps = [Symbol "<" ==> Symbol ">"], maxNumMutants = 10000}) funcname filename
+$ ./mucheck-quickcheck qsort Examples/QuickCheckTest.hs Examples.QuickCheckTest 'quickCheckResult idEmpProp' 'quickCheckResult revProp' 'quickCheckResult modelProp'
 ```
 
-With Cabal Sandbox:
+(4) Or use it from ghci, after copying one of the examples like this.
 ```
-cd mucheck
-cabal sandbox init
-cabal install --only-dependencies
-cabal configure --flags="--enable-tests"
-cabal build
-cabal repl
+$ cp ../mucheck-quickcheck/Examples/QuickCheckTest.hs Examples/QuickCheckTest.hs
+$ ghci
+> :m + Test.MuCheck
+> :m + Test.MuCheck.TestAdapter
+> :m + Test.MuCheck.TestAdapter.QuickCheck
+> :m + Test.QuickCheck.Test
+> mucheck (testSummary::[MutantFilename] -> [InterpreterOutput Result] -> TSum) "qsort" "Examples/QuickCheckTest.hs" "Examples.QuickCheckTest" ["quickCheckResult idEmpProp","quickCheckResult revProp","quickCheckResult modelProp"]
+```
+## HUnit
+```
+$ cp ../mucheck-hunit/Examples/HUnitTest.hs Examples/HUnitTest.hs
+$ ghci
+> :m + Test.MuCheck
+> :m + Test.MuCheck.TestAdapter
+> :m + Test.MuCheck.TestAdapter.HUnit
+> :m + Test.HUnit
+> mucheck (testSummary::[MutantFilename] -> [InterpreterOutput Counts] -> TSum) "qsort" "Examples/HUnitTest.hs" "Examples.HUnitTest" ["runTestTT tests"]
 ```
 
-Execute directly
+## Hspec
 ```
-./mucheck qsort Examples/QuickCheckTest.hs Examples.QuickCheckTest "quickCheckResult idEmpProp" "quickCheckResult revProp" "quickCheckResult modelProp"
+$ cp ../mucheck-hspec/Examples/HspecTest.hs Examples/HspecTest.hs
+$ ghci
+> :m + Test.MuCheck
+> :m + Test.MuCheck.TestAdapter
+> :m + Test.MuCheck.TestAdapter.Hspec
+> :m + Test.Hspec.Core.Runner
+> mucheck (testSummary::[MutantFilename] -> [InterpreterOutput Summary] -> TSum) "qsort" "Examples/HspecTest.hs" "Examples.HspecTest" ["spec"]
 ```
+
