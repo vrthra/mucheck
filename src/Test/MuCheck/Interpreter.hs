@@ -10,17 +10,14 @@ import Data.Either (partitionEithers, rights)
 import Data.List(groupBy, sortBy)
 import Data.Function (on)
 
-import Test.MuCheck.Run.Common
-import Test.MuCheck.Run.QuickCheck
-import Test.MuCheck.Run.HUnit
-import Test.MuCheck.Run.Hspec
+import Test.MuCheck.TestAdapter
 
 -- | Given the list of tests suites to check, run one test suite at a time on
 -- all mutants.
-mutantCheckSummary :: (Summarizable a, Show a) => [String] -> String -> [String] -> FilePath -> IO [a]
-mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
+mutantCheckSummary :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> TSum) -> [String] -> String -> [String] -> FilePath -> IO ()
+mutantCheckSummary testSummaryFn mutantFiles topModule evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
-  let singleTestSummaries = zip evalSrcLst $ map (testSummary mutantFiles) results
+  let singleTestSummaries = zip evalSrcLst $ map (testSummaryFn mutantFiles) results
       tssum  = multipleCheckSummary (isSuccess . snd) results
   -- print results to terminal
   putStrLn $ delim ++ "Overall Results:"
@@ -29,9 +26,7 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
   putStr delim
   -- print results to logfile
   appendFile logFile $ "OVERALL RESULTS:\n" ++ tssum_log tssum ++ showAS (map showDetail singleTestSummaries)
-  -- hacky solution to avoid printing entire results to stdout and to give
-  -- guidance to the type checker in picking specific Summarizable instances
-  return $ tail [head $ map snd $ snd $ partitionEithers $ head results]
+  return ()
   where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ tsum_log msum
         showBrief (method, msum) = showAS [method,
            "\tTotal number of mutants:\t" ++ show (tsum_numMutants msum),
@@ -48,7 +43,6 @@ mutantCheckSummary mutantFiles topModule evalSrcLst logFile  = do
           ""]
            where cpx fn = show (fn tssum) ++ " " ++ (fn tssum) ./. (tssum_numMutants tssum)
         delim = "\n" ++ replicate 25 '=' ++ "\n"
-
 
 -- | Run one test suite on all mutants
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
