@@ -4,7 +4,7 @@ module Test.MuCheck.Interpreter (mutantCheckSummary) where
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans ( liftIO )
 import Data.Typeable
-import Test.MuCheck.Utils.Print (showA, showAS, (./.))
+import Test.MuCheck.Utils.Print (showA, showAS, (./.), catchOutput)
 import Data.Either (partitionEithers, rights)
 import Data.List(groupBy, sortBy)
 import Data.Function (on)
@@ -72,7 +72,8 @@ mySummaryFn testSummaryFn mutantFiles results = TSum {
 runCodeOnMutants :: Typeable t => [String] -> String -> String -> IO [InterpreterOutput t]
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
   where evalMyStr eStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
-                                 I.runInterpreter (evalMethod file topModule eStr)
+                                 (res,_) <- catchOutput (I.runInterpreter (evalMethod file topModule eStr))
+                                 return res
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 --

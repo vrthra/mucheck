@@ -14,3 +14,6 @@ sandbox:
 
 build:
 	cabal build
+
+install:
+	cabal install
