@@ -67,7 +67,7 @@ class Mutable a where
 xs *==>* ys = concatMap (==>* ys) xs
 
 -- we handle x ~~> x separately
-(~~>) :: (MonadPlus m, Eq a) => a -> a -> (a -> m a)
+(~~>) :: (MonadPlus m, Eq a) => a -> a -> a -> m a
 x ~~> y = \z -> if z == x then return y else mzero
 
 -- instances

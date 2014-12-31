@@ -12,7 +12,7 @@ choose xs n = filter (\x -> length x == n) $ subsequences xs
 -- | The `coupling` function produces all possible pairings, and applies the
 -- given function to each
 coupling :: Eq a => (a -> a -> t) -> [a] -> [t]
-coupling fn ops = [(fn o1 o2) | o1 <- ops, o2 <- ops, o1 /= o2]
+coupling fn ops = [fn o1 o2 | o1 <- ops, o2 <- ops, o1 /= o2]
 
 
 -- | The `genFileNames` function lazily generates filenames of mutants

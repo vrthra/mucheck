@@ -1,4 +1,3 @@
-{-# LANGUAGE StandaloneDeriving, DeriveDataTypeable #-}
 -- | The entry point for mucheck
 module Test.MuCheck.Interpreter (mutantCheckSummary) where
 
@@ -25,41 +24,41 @@ mutantCheckSummary testSummaryFn mutantFiles topModule evalSrcLst logFile  = do
   putStrLn $ showAS $ map showBrief singleTestSummaries
   putStr delim
   -- print results to logfile
-  appendFile logFile $ "OVERALL RESULTS:\n" ++ tssum_log tssum ++ showAS (map showDetail singleTestSummaries)
+  appendFile logFile $ "OVERALL RESULTS:\n" ++ tssumLog tssum ++ showAS (map showDetail singleTestSummaries)
   return ()
-  where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ tsum_log msum
+  where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ tsumLog msum
         showBrief (method, msum) = showAS [method,
-           "\tTotal number of mutants:\t" ++ show (tsum_numMutants msum),
-           "\tFailed to Load:\t" ++ (cpx tsum_loadError),
-           "\tNot Killed:\t" ++ (cpx tsum_notKilled),
-           "\tKilled:\t" ++ (cpx tsum_killed),
-           "\tOthers:\t" ++ (cpx tsum_others),
+           "\tTotal number of mutants:\t" ++ show (tsumNumMutants msum),
+           "\tFailed to Load:\t" ++ cpx tsumLoadError,
+           "\tNot Killed:\t" ++ cpx tsumNotKilled,
+           "\tKilled:\t" ++ cpx tsumKilled,
+           "\tOthers:\t" ++ cpx tsumOthers,
            ""]
-           where cpx fn = show (fn msum) ++ " " ++ (fn msum) ./. (tsum_numMutants msum)
+           where cpx fn = show (fn msum) ++ " " ++ fn msum ./. tsumNumMutants msum
         terminalSummary tssum = showAS [
-          "Total number of mutants:\t" ++ show (tssum_numMutants tssum),
-          "Total number of alive mutants:\t" ++ (cpx tssum_alive),
-          "Total number of load errors:\t" ++ (cpx tssum_errors),
+          "Total number of mutants:\t" ++ show (tssumNumMutants tssum),
+          "Total number of alive mutants:\t" ++ cpx tssumAlive,
+          "Total number of load errors:\t" ++ cpx tssumErrors,
           ""]
-           where cpx fn = show (fn tssum) ++ " " ++ (fn tssum) ./. (tssum_numMutants tssum)
+           where cpx fn = show (fn tssum) ++ " " ++ fn tssum ./. tssumNumMutants tssum
         delim = "\n" ++ replicate 25 '=' ++ "\n"
 
 
-data TSum = TSum {tsum_numMutants::Int,
-                  tsum_loadError::Int,
-                  tsum_notKilled::Int,
-                  tsum_killed::Int,
-                  tsum_others::Int,
-                  tsum_log::String}
+data TSum = TSum {tsumNumMutants::Int,
+                  tsumLoadError::Int,
+                  tsumNotKilled::Int,
+                  tsumKilled::Int,
+                  tsumOthers::Int,
+                  tsumLog::String}
 
 mySummaryFn :: (Summarizable b, Eq a1) => ([a1] -> [Either a (a1, b)] -> Summary) -> [a1] -> [Either a (a1, b)] -> TSum
 mySummaryFn testSummaryFn mutantFiles results = TSum {
-    tsum_numMutants = r,
-    tsum_loadError = l,
-    tsum_notKilled = s,
-    tsum_killed = f,
-    tsum_others = g,
-    tsum_log = logStr}
+    tsumNumMutants = r,
+    tsumLoadError = l,
+    tsumNotKilled = s,
+    tsumKilled = f,
+    tsumOthers = g,
+    tsumLog = logStr}
   where (errorCases, executedCases) = partitionEithers results
         [successCases, failureCases, otherCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isOther]
         r = length results
@@ -89,20 +88,20 @@ evalMethod fileName topModule evalStr = do
   return (fileName, result)
 
 -- | Datatype to hold results of the entire run
-data TSSum = TSSum {tssum_numMutants::Int,
-                    tssum_alive::Int,
-                    tssum_errors::Int,
-                    tssum_log::String}
+data TSSum = TSSum {tssumNumMutants::Int,
+                    tssumAlive::Int,
+                    tssumErrors::Int,
+                    tssumLog::String}
 
 -- | Summarize the entire run
 multipleCheckSummary :: Show b => ((String, b) -> Bool) -> [[InterpreterOutput b]] -> TSSum
 multipleCheckSummary isSuccessFunction results
   -- we assume that checking each prop results in the same number of errorCases and executedCases
   | not (checkLength results) = error "Output lengths differ for some properties."
-  | otherwise = TSSum {tssum_numMutants = countMutants,
-                       tssum_alive = countAlive,
-                       tssum_errors= countErrors,
-                       tssum_log = logMsg}
+  | otherwise = TSSum {tssumNumMutants = countMutants,
+                       tssumAlive = countAlive,
+                       tssumErrors= countErrors,
+                       tssumLog = logMsg}
   where executedCases = groupBy ((==) `on` fst) . sortBy (compare `on` fst) . rights $ concat results
         allSuccesses = [rs | rs <- executedCases, length rs == length results, all isSuccessFunction rs]
         countAlive = length allSuccesses
