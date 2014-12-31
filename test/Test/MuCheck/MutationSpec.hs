@@ -1,6 +1,5 @@
 module Test.MuCheck.MutationSpec (main, spec) where
 import Test.Hspec
-import Test.QuickCheck hiding ((==>))
 import System.Random
 import qualified Test.MuCheck.Mutation as Mu
 import Test.MuCheck.MuOp

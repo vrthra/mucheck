@@ -1,7 +1,6 @@
 module Test.MuCheck.Utils.SybSpec where
 
 import Test.Hspec
-import Test.QuickCheck
 import System.Random
 import qualified Test.MuCheck.Utils.Syb as S
 import Control.Monad (MonadPlus, mplus, mzero)

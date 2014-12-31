@@ -26,3 +26,4 @@ prepare:
 
 clean:
 	- rm Examples/*
+	- rm *.log

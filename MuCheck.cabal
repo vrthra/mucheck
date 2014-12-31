@@ -38,7 +38,7 @@ library
                     Test.MuCheck.Utils.Common,
                     Test.MuCheck.Utils.Print,
                     Test.MuCheck.TestAdapter
-  ghc-options:     -Wall -Werror
+  ghc-options:     -Wall
   -- other-modules:       
   build-depends:    base >=4 && <5,
                     haskell-src-exts >=1.13,

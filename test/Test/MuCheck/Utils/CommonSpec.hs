@@ -1,6 +1,5 @@
 module Test.MuCheck.Utils.CommonSpec (main, spec) where
 import Test.Hspec
-import Test.QuickCheck
 import System.Random
 import qualified Test.MuCheck.Utils.Common as MUC
 

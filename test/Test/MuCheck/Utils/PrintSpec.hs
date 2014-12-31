@@ -1,7 +1,6 @@
 module Test.MuCheck.Utils.PrintSpec (main, spec) where
 
 import Test.Hspec
-import Test.QuickCheck
 import Test.MuCheck.Utils.Print
 
 main :: IO ()
