@@ -9,6 +9,7 @@ import Test.MuCheck.Utils.Common
 import Language.Haskell.Exts (Name(Symbol), Exp(Var), QName(UnQual), Name(Ident))
 
 -- | all available operators
+allOps,comparators,predNums,binAriths,arithLists :: [MuOp]
 allOps = concat [comparators, predNums, binAriths, arithLists]
 
 -- | comparison operators ["<", ">", "<=", ">=", "/=", "=="]
@@ -24,5 +25,6 @@ binAriths = coupling (==>) $ map Symbol ["+", "-", "*", "/"]
 arithLists = coupling (==>) $ map varfn ["sum", "product", "maximum", "minimum", "head", "last"]
 
 -- utilities
+varfn :: String -> Exp
 varfn = Var . UnQual . Ident
 

@@ -27,11 +27,13 @@ data MuOp = N  (Name, Name)
 same :: MuOp -> Bool
 same (N (a,b)) = a == b
 same (QN (a,b)) = a == b
+same (QO (a,b)) = a == b
 same (E (a,b)) = a == b
 same (D (a,b)) = a == b
 same (L (a,b)) = a == b
 same (G (a,b)) = a == b
 
+mkMp' :: (MonadPlus m, G.Typeable a) => MuOp -> a -> m a
 mkMp' (N (s,t))  = G.mkMp (s ~~> t)
 mkMp' (QN (s,t)) = G.mkMp (s ~~> t)
 mkMp' (QO (s,t)) = G.mkMp (s ~~> t)
@@ -40,7 +42,9 @@ mkMp' (D (s,t))  = G.mkMp (s ~~> t)
 mkMp' (L (s,t))  = G.mkMp (s ~~> t)
 mkMp' (G (s,t))  = G.mkMp (s ~~> t)
 
+showM :: (Show a1, Show a) => (a, a1) -> String
 showM (s, t) = "\n" ++ show s ++ " ==> " ++ show t
+
 instance Show MuOp where
     show (N a)  = showM a
     show (QN a) = showM a

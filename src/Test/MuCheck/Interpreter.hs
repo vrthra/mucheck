@@ -7,7 +7,7 @@ import Control.Monad.Trans ( liftIO )
 import Data.Typeable
 import Test.MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either (partitionEithers, rights)
-import Data.List(groupBy, sortBy, (\\))
+import Data.List(groupBy, sortBy)
 import Data.Function (on)
 
 import Test.MuCheck.TestAdapter
@@ -52,26 +52,28 @@ data TSum = TSum {tsum_numMutants::Int,
                   tsum_others::Int,
                   tsum_log::String}
 
+mySummaryFn :: (Summarizable b, Eq a1) => ([a1] -> [Either a (a1, b)] -> Summary) -> [a1] -> [Either a (a1, b)] -> TSum
 mySummaryFn testSummaryFn mutantFiles results = TSum {
     tsum_numMutants = r,
     tsum_loadError = l,
     tsum_notKilled = s,
     tsum_killed = f,
     tsum_others = g,
-    tsum_log = log}
+    tsum_log = logStr}
   where (errorCases, executedCases) = partitionEithers results
         [successCases, failureCases, otherCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isOther]
         r = length results
         l = length errorCases
         [s,f,g] = map length [successCases, failureCases, otherCases]
-        errorFiles = mutantFiles \\ map fst executedCases
-        Summary log = testSummaryFn mutantFiles results
+        -- errorFiles = mutantFiles \\ map fst executedCases
+        Summary logStr = testSummaryFn mutantFiles results
 
 
 -- | Run one test suite on all mutants
+runCodeOnMutants :: Typeable t => [String] -> String -> String -> IO [InterpreterOutput t]
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
-  where evalMyStr evalStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
-                                    I.runInterpreter (evalMethod file topModule evalStr)
+  where evalMyStr eStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
+                                 I.runInterpreter (evalMethod file topModule eStr)
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 --
@@ -93,6 +95,7 @@ data TSSum = TSSum {tssum_numMutants::Int,
                     tssum_log::String}
 
 -- | Summarize the entire run
+multipleCheckSummary :: Show b => ((String, b) -> Bool) -> [[InterpreterOutput b]] -> TSSum
 multipleCheckSummary isSuccessFunction results
   -- we assume that checking each prop results in the same number of errorCases and executedCases
   | not (checkLength results) = error "Output lengths differ for some properties."
@@ -105,7 +108,7 @@ multipleCheckSummary isSuccessFunction results
         countAlive = length allSuccesses
         countErrors = countMutants - length executedCases
         logMsg = showA allSuccesses
-        checkLength results = and $ map ((==countMutants) . length) results ++ map ((==countExecutedCases) . length) executedCases
+        checkLength res = and $ map ((==countMutants) . length) res ++ map ((==countExecutedCases) . length) executedCases
         countExecutedCases = length . head $ executedCases
         countMutants = length . head $ results
 

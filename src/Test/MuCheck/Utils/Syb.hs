@@ -19,5 +19,5 @@ once f x = f x `mplus` gmapMo (once f) x
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
 relevantOps m oplst = filter (relevantOp m) $ filter (not . same) oplst
   -- check if an operator can be applied to a program
-  where relevantOp m op = isJust $ once (mkMp' op) m
+  where relevantOp m' op = isJust $ once (mkMp' op) m'
 

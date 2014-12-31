@@ -3,12 +3,11 @@
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
-        Stmt(Qualifier), Module(Module), ModuleName(..),
-        Name(Ident, Symbol), Decl(FunBind, PatBind), Match,
+        Stmt(Qualifier), Module(Module),
+        Name(Ident, Symbol), Decl(FunBind, PatBind),
         Pat(PVar), Match(Match), GuardedRhs(GuardedRhs), 
         prettyPrint, fromParseResult, parseFileContents)
-import Data.Maybe (fromJust)
-import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
+import Data.Generics (Data, Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations)
 import Control.Monad (liftM, zipWithM)
 import System.Random
@@ -17,11 +16,11 @@ import Data.Time.Clock.POSIX
 import Test.MuCheck.MuOp
 import Test.MuCheck.Utils.Syb
 import Test.MuCheck.Utils.Common
-import Test.MuCheck.Operators
 import Test.MuCheck.Config
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
+genMutants :: String -> FilePath -> IO Int
 genMutants = genMutantsWith defaultConfig
 
 -- | The `genMutantsWith` function takes configuration function to mutate,
@@ -41,7 +40,7 @@ genMutantsWith args funcname filename  = liftM length $ do
         guardedBoolNegOps = sampleF g (doNegateGuards args) $ selectGuardedBoolNegOps f
 
         patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
-        allMutants = nub $ patternMatchMutants ++ operatorMutants
+        allMutants = nub $ patternMatchMutants ++ operatorMutants ++ ifElseNegMutants ++ guardedNegMutants
 
         patternMatchMutants = mutatesN swapOps f fstOrder
         ifElseNegMutants = mutatesN ifElseNegOps f fstOrder
@@ -50,16 +49,16 @@ genMutantsWith args funcname filename  = liftM length $ do
             FirstOrderOnly -> mutatesN ops f fstOrder
             _              -> mutates ops f
 
-        getFunc fname ast = head $ listify (isFunctionD fname) ast
-        programMutants ast =  map (putDecls ast) $ mylst ast
-        mylst ast = [myfn ast x | x <- take (maxNumMutants args) allMutants]
-        myfn ast fn = replace (getFunc funcname ast,fn) (getDecls ast)
+        getFunc fname ast' = head $ listify (isFunctionD fname) ast'
+        programMutants ast' =  map (putDecls ast) $ mylst ast'
+        mylst ast' = [myfn ast' x | x <- take (maxNumMutants args) allMutants]
+        myfn ast' fn = replace (getFunc funcname ast', fn) (getDecls ast')
 
     case ops ++ swapOps of
       [] -> return [] --  putStrLn "No applicable operator exists!"
       _  -> zipWithM writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
   where fstOrder = 1 -- first order
-        getASTFromFile filename = liftM parseModuleFromFile $ readFile filename
+        getASTFromFile fname = liftM parseModuleFromFile $ readFile fname
 
 -- | Mutating a function's code using a bunch of mutation operators
 -- (In all the three mutate functions, we assume working
@@ -69,8 +68,8 @@ mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
 
 -- the third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
-mutatesN ops m 1 = concat [mutate op m | op <- ops ]
-mutatesN ops m c =  concat [mutatesN ops m 1 | m <- mutatesN ops m (c-1)]
+mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
+mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms (c-1)]
 
 -- | Given a function, generate all mutants after applying applying 
 -- op once (op might be applied at different places).E.g.:
@@ -94,7 +93,7 @@ permMatches _  = []
 -- | generates transformations that removes one pattern match from a function
 -- definition.
 removeOnePMatch :: Decl -> [MuOp]
-removeOnePMatch d@(FunBind [x]) = []
+removeOnePMatch (FunBind [_]) = []
 removeOnePMatch d@(FunBind ms) = d ==>* map FunBind (removeOneElem ms \\ [ms])
 removeOnePMatch _  = []
 
@@ -116,12 +115,12 @@ putDecls (Module a b c d e f _) decls = Module a b c d e f decls
 
 -- Define all operations on a value
 selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
-selectValOps pred fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
-  where vals = nub $ listify pred m
+selectValOps predicate fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
+  where vals = nub $ listify predicate m
 
 selectValOps' :: (Data a, Eq a, Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> a -> [MuOp]
-selectValOps' pred f m = concatMap (\x -> x ==>* f x) vals
-  where vals = listify pred m
+selectValOps' predicate f m = concatMap (\x -> x ==>* f x) vals
+  where vals = listify predicate m
 
 selectIntOps :: (Data a, Eq a) => a -> [MuOp]
 selectIntOps m = selectValOps isInt [
@@ -143,7 +142,7 @@ selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps' isGuardedRhs negateGuardedRhs m
   where isGuardedRhs GuardedRhs{} = True
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
-        boolNegate (Qualifier exp) = [Qualifier (App (Var (UnQual (Ident "not"))) exp)]
+        boolNegate (Qualifier expr) = [Qualifier (App (Var (UnQual (Ident "not"))) expr)]
         boolNegate x = [x]
-        negateGuardedRhs (GuardedRhs srcLoc stmts exp) = [GuardedRhs srcLoc s exp | s <- once (mkMp boolNegate) stmts]
+        negateGuardedRhs (GuardedRhs srcLoc stmts expr) = [GuardedRhs srcLoc s expr | s <- once (mkMp boolNegate) stmts]
 
