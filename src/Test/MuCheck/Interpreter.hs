@@ -13,9 +13,9 @@ import Test.MuCheck.TestAdapter
 
 -- | Given the list of tests suites to check, run one test suite at a time on
 -- all mutants.
-mutantCheckSummary :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> Summary) -> [String] -> String -> [String] -> FilePath -> IO ()
-mutantCheckSummary testSummaryFn mutantFiles topModule evalSrcLst logFile  = do
-  results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
+mutantCheckSummary :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> Summary) -> [String] -> [String] -> FilePath -> IO ()
+mutantCheckSummary testSummaryFn mutantFiles evalSrcLst logFile  = do
+  results <- mapM (runCodeOnMutants mutantFiles) evalSrcLst
   let singleTestSummaries = zip evalSrcLst $ map (mySummaryFn testSummaryFn mutantFiles) results
       tssum  = multipleCheckSummary (isSuccess . snd) results
   -- print results to terminal
@@ -69,10 +69,10 @@ mySummaryFn testSummaryFn mutantFiles results = TSum {
 
 
 -- | Run one test suite on all mutants
-runCodeOnMutants :: Typeable t => [String] -> String -> String -> IO [InterpreterOutput t]
-runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
-  where evalMyStr eStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ topModule ++ ":" ++ evalStr
-                                 (res,_) <- catchOutput (I.runInterpreter (evalMethod file topModule eStr))
+runCodeOnMutants :: Typeable t => [String] -> String -> IO [InterpreterOutput t]
+runCodeOnMutants mutantFiles evalStr = mapM (evalMyStr evalStr) mutantFiles
+  where evalMyStr eStr file = do putStrLn $ ">" ++ ":" ++ file ++ ":" ++ evalStr
+                                 (res,_) <- catchOutput (I.runInterpreter (evalMethod file eStr))
                                  return res
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
@@ -81,10 +81,11 @@ runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutant
 -- >        "Examples/QuickCheckTest.hs"
 -- >        "Examples.QuickCheckTest"
 -- >        "quickCheckResult idEmp)
-evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> String -> m (String, t)
-evalMethod fileName topModule evalStr = do
+evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> m (String, t)
+evalMethod fileName evalStr = do
   I.loadModules [fileName]
-  I.setTopLevelModules [topModule]
+  ms <- I.getLoadedModules
+  I.setTopLevelModules ms
   result <- I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
   return (fileName, result)
 

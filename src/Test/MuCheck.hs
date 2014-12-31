@@ -8,9 +8,9 @@ import Test.MuCheck.Interpreter (mutantCheckSummary)
 import Test.MuCheck.TestAdapter
 
 -- | Perform mutation analysis
-mucheck :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> Summary) -> String -> FilePath -> String -> [String] -> IO ()
-mucheck resFn mFn file modulename args = do
+mucheck :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> Summary) -> String -> FilePath -> [String] -> IO ()
+mucheck resFn mFn file args = do
   numMutants <- genMutants mFn file
   let muts = take numMutants $ genFileNames file
-  void $ mutantCheckSummary resFn muts modulename args ("./mucheck-" ++ mFn ++ ".log")
+  void $ mutantCheckSummary resFn muts args ("./mucheck-" ++ mFn ++ ".log")
 
