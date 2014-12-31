@@ -13,7 +13,7 @@ import Test.MuCheck.Interpreter (mutantCheckSummary)
 import Test.MuCheck.TestAdapter
 
 -- | Perform mutation analysis
-mucheck :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> TSum) -> String -> FilePath -> String -> [String] -> IO ()
+mucheck :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> Summary) -> String -> FilePath -> String -> [String] -> IO ()
 mucheck resFn mFn file modulename args = do
   numMutants <- genMutants mFn file
   let muts = take numMutants $ genFileNames file

@@ -4,6 +4,7 @@
   * Better documentation
   * Add tests for SYB once
   * Split it to a library and adapter modules
+  * Simplify adapter interface
 
 ## [0.1.3.0] (Rahul Gopinath)
   * Migrate mucheck to Test namespace

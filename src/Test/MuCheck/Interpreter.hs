@@ -7,17 +7,17 @@ import Control.Monad.Trans ( liftIO )
 import Data.Typeable
 import Test.MuCheck.Utils.Print (showA, showAS, (./.))
 import Data.Either (partitionEithers, rights)
-import Data.List(groupBy, sortBy)
+import Data.List(groupBy, sortBy, (\\))
 import Data.Function (on)
 
 import Test.MuCheck.TestAdapter
 
 -- | Given the list of tests suites to check, run one test suite at a time on
 -- all mutants.
-mutantCheckSummary :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> TSum) -> [String] -> String -> [String] -> FilePath -> IO ()
+mutantCheckSummary :: (Summarizable a, Show a) => ([String] -> [InterpreterOutput a] -> Summary) -> [String] -> String -> [String] -> FilePath -> IO ()
 mutantCheckSummary testSummaryFn mutantFiles topModule evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles topModule) evalSrcLst
-  let singleTestSummaries = zip evalSrcLst $ map (testSummaryFn mutantFiles) results
+  let singleTestSummaries = zip evalSrcLst $ map (mySummaryFn testSummaryFn mutantFiles) results
       tssum  = multipleCheckSummary (isSuccess . snd) results
   -- print results to terminal
   putStrLn $ delim ++ "Overall Results:"
@@ -43,6 +43,30 @@ mutantCheckSummary testSummaryFn mutantFiles topModule evalSrcLst logFile  = do
           ""]
            where cpx fn = show (fn tssum) ++ " " ++ (fn tssum) ./. (tssum_numMutants tssum)
         delim = "\n" ++ replicate 25 '=' ++ "\n"
+
+
+data TSum = TSum {tsum_numMutants::Int,
+                  tsum_loadError::Int,
+                  tsum_notKilled::Int,
+                  tsum_killed::Int,
+                  tsum_others::Int,
+                  tsum_log::String}
+
+mySummaryFn testSummaryFn mutantFiles results = TSum {
+    tsum_numMutants = r,
+    tsum_loadError = l,
+    tsum_notKilled = s,
+    tsum_killed = f,
+    tsum_others = g,
+    tsum_log = log}
+  where (errorCases, executedCases) = partitionEithers results
+        [successCases, failureCases, otherCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isOther]
+        r = length results
+        l = length errorCases
+        [s,f,g] = map length [successCases, failureCases, otherCases]
+        errorFiles = mutantFiles \\ map fst executedCases
+        Summary log = testSummaryFn mutantFiles results
+
 
 -- | Run one test suite on all mutants
 runCodeOnMutants mutantFiles topModule evalStr = mapM (evalMyStr evalStr) mutantFiles
