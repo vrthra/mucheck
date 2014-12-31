@@ -17,3 +17,12 @@ build:
 
 install:
 	cabal install
+
+prepare:
+	cabal haddock
+	cabal check
+	cabal test
+	cabal sdist
+
+clean:
+	- rm Examples/*
