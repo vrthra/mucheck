@@ -14,3 +14,5 @@
 * Avoid writing mutants to disk unless asked for.
 * Parallelize mutation analysis
 * Allow specifying which higher order mutants to include, or how to mutate depending on the context.
+* Make genMutants lazy and randomized, and get runCodeOnMutants to report the current progress and mutation
+  percentage online.
