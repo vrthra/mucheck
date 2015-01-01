@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.2.0.1] (Rahul Gopinath)
+## [0.2.1.0] (Rahul Gopinath)
   * Remove need to pass in module name
   * Add new literal mutators
+  * Refactor Mutation so that IO and Rand are pushed further out, and a sampler is introduced that user can override.
+  * Fix the bug where maxMutants were just the first n mutants, rather than n being randomly sampled.
+  * Move writefile to front where more choices about it can be made.
+  * We no longer require modulename to be passed in.
 
 ## [0.2.0.0] (Rahul Gopinath)
   * Better documentation

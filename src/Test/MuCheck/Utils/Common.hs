@@ -4,6 +4,8 @@ module Test.MuCheck.Utils.Common where
 import System.FilePath (splitExtension)
 import System.Random
 import Data.List
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Control.Monad (liftM)
 
 -- | The `choose` function generates subsets of a given size
 choose :: [a] -> Int -> [[a]]
@@ -33,9 +35,15 @@ replace (o,n) lst = map replaceit lst
 -- subset of given size.
 sample :: (RandomGen g) => g -> Int -> [t] -> [t]
 sample _ 0 _ = []
+sample _ n xs | length xs <= n = xs
 sample g n xs = val : sample g' (n - 1) (remElt idx xs)
   where val = xs !! idx
         (idx,g')  = randomR (0, length xs - 1) g
+
+-- | Wrapper around sample providing the random seed
+rSample :: Int -> [t] -> IO [t]
+rSample n t = do g <- genRandomSeed
+                 return $ sample g n t
 
 -- | The `sampleF` function takes a random generator, and a fraction and
 -- returns subset of size given by fraction
@@ -60,4 +68,13 @@ swapElts i j ls = [get k x | (k, x) <- zip [0..length ls - 1] ls]
 genSwapped :: [t] -> [[t]]
 genSwapped lst = map (\(x:y:_) -> swapElts x y lst) swaplst
   where swaplst = choose [0..length lst - 1] 2
+
+-- | Generate a random seed from the time.
+genRandomSeed :: IO StdGen
+genRandomSeed = liftM (mkStdGen . round) getPOSIXTime
+
+-- | take a function of two args producing a monadic result, and apply it to
+-- a pair
+curryM :: (t1 -> t2 -> m t) -> (t1, t2) -> m t
+curryM fn (a,b) = fn a b
 

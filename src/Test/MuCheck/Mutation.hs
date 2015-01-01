@@ -10,9 +10,7 @@ import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar,
         prettyPrint, fromParseResult, parseFileContents)
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations)
-import Control.Monad (liftM, zipWithM)
-import System.Random
-import Data.Time.Clock.POSIX
+import System.Random (RandomGen)
 
 import Test.MuCheck.MuOp
 import Test.MuCheck.Utils.Syb
@@ -21,24 +19,37 @@ import Test.MuCheck.Config
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
-genMutants :: String -> FilePath -> IO Int
+genMutants :: String -> FilePath -> IO [(String, String)]
 genMutants = genMutantsWith defaultConfig
 
 -- | The `genMutantsWith` function takes configuration function to mutate,
 -- filename the function is defined in, and produces mutants in the same
 -- directory as the filename, and returns the number of mutants produced.
-genMutantsWith :: Config -> String -> FilePath -> IO Int
-genMutantsWith args funcname filename  = liftM length $ do
-    ast <- getASTFromFile filename
-    g <- liftM (mkStdGen . round) getPOSIXTime
-    let f = getFunc funcname ast
+genMutantsWith :: Config -> String -> FilePath -> IO [(String, String)]
+genMutantsWith args func filename  = do
+      g <- genRandomSeed
+      f <- readFile filename
+      return $ zip (genFileNames filename) $ genMutantsForSrc defaultConfig func f (sampler args g)
+
+-- | Wrapper around sampleF that returns correct sampling ratios according to
+-- configuration passed.
+sampler :: RandomGen g => Config -> g -> MuVars -> [t] -> [t]
+sampler args g m = sampleF g (getSample m args)
+
+-- | The `genMutantsForSrc` takes the function name to mutate, source where it
+-- is defined, and a sampling function, and returns the mutated sources selected
+-- using sampling function.
+genMutantsForSrc :: Config -> String -> String -> (MuVars -> [MuOp] -> [MuOp]) -> [String]
+genMutantsForSrc args funcname src sampleFn = map prettyPrint (programMutants astMod)
+  where astMod = getASTFromStr src
+        f = getFunc funcname astMod
 
         ops, swapOps, valOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
         ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
-        swapOps = sampleF g (doMutatePatternMatches args) $ permMatches f ++ removeOnePMatch f
-        valOps = sampleF g (doMutateValues args) $ selectLitOps f
-        ifElseNegOps = sampleF g (doNegateIfElse args) $ selectIfElseBoolNegOps f
-        guardedBoolNegOps = sampleF g (doNegateGuards args) $ selectGuardedBoolNegOps f
+        swapOps = sampleFn MutatePatternMatch $ permMatches f ++ removeOnePMatch f
+        valOps = sampleFn MutateValues $ selectLitOps f
+        ifElseNegOps = sampleFn MutateNegateIfElse $ selectIfElseBoolNegOps f
+        guardedBoolNegOps = sampleFn MutateNegateGuards $ selectGuardedBoolNegOps f
 
         patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
         allMutants = nub $ patternMatchMutants ++ operatorMutants ++ ifElseNegMutants ++ guardedNegMutants
@@ -51,17 +62,12 @@ genMutantsWith args funcname filename  = liftM length $ do
             _              -> mutates ops f
 
         getFunc :: String -> Module -> Decl
-        getFunc fname ast' = head $ listify (isFunctionD fname) ast'
-        programMutants ast' =  map (putDecls ast) $ mylst ast'
-        mylst ast' = [myfn ast' x | x <- take (maxNumMutants args) allMutants]
-        myfn ast' fn = replace (getFunc funcname ast', fn) (getDecls ast')
+        getFunc fname ast = head $ listify (isFunctionD fname) ast
+        programMutants ast =  map (putDecls ast) $ mylst ast
+        mylst ast = [myfn ast x | x <- allMutants]
+        myfn ast fn = replace (getFunc funcname ast, fn) (getDecls ast)
 
-    case ops ++ swapOps of
-      [] -> return [] --  putStrLn "No applicable operator exists!"
-      _  -> zipWithM writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
-  where fstOrder = 1 -- first order
-        getASTFromFile :: String -> IO Module
-        getASTFromFile fname = liftM parseModuleFromFile $ readFile fname
+        fstOrder = 1 -- first order
 
 -- | Higher order mutation of a function's code using a bunch of mutation
 -- operators (In all the three mutate functions, we assume working
@@ -112,9 +118,9 @@ removeOneElem l = choose l (length l - 1)
 
 -- AST/module-related operations
 
--- | Parse a module. Input is the content of the file
-parseModuleFromFile :: String -> Module
-parseModuleFromFile inp = fromParseResult $ parseFileContents inp
+-- | Returns the AST from the file
+getASTFromStr :: String -> Module
+getASTFromStr fname = fromParseResult $ parseFileContents fname
 
 -- | Get the declaration part from a module
 getDecls :: Module -> [Decl]

@@ -68,3 +68,17 @@ defaultConfig = Config {muOps = allOps
   , maxNumMutants = 300
   , genMode = FirstOrderOnly }
 
+-- | Enumeration of different kinds of mutations
+data MuVars = MutatePatternMatch
+            | MutateValues
+            | MutateNegateIfElse
+            | MutateNegateGuards
+
+-- | getSample returns the fraction in config corresponding to the enum passed
+-- in
+getSample :: MuVars -> Config -> Rational
+getSample MutatePatternMatch = doMutatePatternMatches
+getSample MutateValues       = doMutateValues
+getSample MutateNegateIfElse = doNegateIfElse
+getSample MutateNegateGuards = doNegateGuards
+
