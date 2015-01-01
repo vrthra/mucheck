@@ -2,10 +2,11 @@
 -- | Mutation happens here.
 module Test.MuCheck.Mutation where
 
-import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
+import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
+        Exp(App, Var, If), QName(UnQual),
         Stmt(Qualifier), Module(Module),
         Name(Ident, Symbol), Decl(FunBind, PatBind),
-        Pat(PVar), Match(Match), GuardedRhs(GuardedRhs), 
+        Pat(PVar), Match(Match), GuardedRhs(GuardedRhs),
         prettyPrint, fromParseResult, parseFileContents)
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations)
@@ -35,7 +36,7 @@ genMutantsWith args funcname filename  = liftM length $ do
         ops, swapOps, valOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
         ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
         swapOps = sampleF g (doMutatePatternMatches args) $ permMatches f ++ removeOnePMatch f
-        valOps = sampleF g (doMutateValues args) $ selectIntOps f
+        valOps = sampleF g (doMutateValues args) $ selectLitOps f
         ifElseNegOps = sampleF g (doNegateIfElse args) $ selectIfElseBoolNegOps f
         guardedBoolNegOps = sampleF g (doNegateGuards args) $ selectGuardedBoolNegOps f
 
@@ -74,7 +75,7 @@ mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms (c-1)]
 
--- | Given a function, generate all mutants after applying applying 
+-- | Given a function, generate all mutants after applying applying
 -- op once (op might be applied at different places).
 -- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
 -- "<" in the AST, then it will return two AST with each replaced.
@@ -121,44 +122,48 @@ putDecls (Module a b c d e f _) decls = Module a b c d e f decls
 
 -- | For valops, unlike functions, we specify how any given literal value might
 -- change. So we take a predicate specifying how to recognize the literal
--- value, a list of functions specifying how the literal can change, and the
+-- value, a list of mappings specifying how the literal can change, and the
 -- AST, and recurse over the AST looking for literals that match our predicate.
--- When we find any, we apply the given list of functions to them, and produce
+-- When we find any, we apply the given list of mappings to them, and produce
 -- a MuOp mapping between the original value and transformed value. This list
 -- of MuOp mappings are then returned.
-selectValOps :: (Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> Decl -> [MuOp]
-selectValOps predicate fs m = concat [x ==>* map ($ x) fs | x <- vals]
-  where  vals = nub $ listify predicate m
-
--- We can not combine selectValOps with selectValOps' because we will have
--- duplicates in the transformations, which only selectValOps can handle.
-
--- | Similar to `selectValOps` except that rather than have a list of functions
--- to transform literals, we have a function that takesn one value, and returns
--- a list of literals.
-selectValOps' :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Decl -> [MuOp]
-selectValOps' predicate f m = concat [ x ==>* f x |  x <- vals ]
+selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Decl -> [MuOp]
+selectValOps predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
--- | Look for int values in AST, and return applicable MuOp transforms.
-selectIntOps :: Decl -> [MuOp]
-selectIntOps m = selectValOps isInt [
-      \(Int i) -> Int (i + 1),
-      \(Int i) -> Int (i - 1),
-      \(Int i) -> if abs i /= 1 then Int 0 else Int i,
-      \(Int i) -> if abs (i-1) /= 1 then Int 1 else Int i] m
-  where isInt (Int _) = True
-        isInt _       = False
+-- | Look for literal values in AST, and return applicable MuOp transforms.
+selectLitOps :: Decl -> [MuOp]
+selectLitOps m = selectValOps isLit convert m
+  where isLit (Int _) = True
+        isLit (PrimInt _) = True
+        isLit (Char _) = True
+        isLit (PrimChar _) = True
+        isLit (Frac _) = True
+        isLit (PrimFloat _) = True
+        isLit (PrimDouble _) = True
+        isLit (String _) = True
+        isLit (PrimString _) = True
+        isLit (PrimWord _) = True
+        convert (Int i) = map Int $ nub [i + 1, i - 1, 0, 1]
+        convert (PrimInt i) = map PrimInt $ nub [i + 1, i - 1, 0, 1]
+        convert (Char c) = map Char [pred c, succ c]
+        convert (PrimChar c) = map Char [pred c, succ c]
+        convert (Frac f) = map Frac $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
+        convert (PrimFloat f) = map PrimFloat $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
+        convert (PrimDouble f) = map PrimDouble $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
+        convert (String _) = map String $ nub [""]
+        convert (PrimString _) = map PrimString $ nub [""]
+        convert (PrimWord i) = map PrimWord $ nub [i + 1, i - 1, 0, 1]
 
 -- | Negating boolean in if/else statements
 selectIfElseBoolNegOps :: Decl -> [MuOp]
-selectIfElseBoolNegOps m = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3] m
+selectIfElseBoolNegOps m = selectValOps isIf (\(If e1 e2 e3) -> [If (App (Var (UnQual (Ident "not"))) e1) e2 e3]) m
   where isIf If{} = True
         isIf _    = False
 
 -- | Negating boolean in Guards
 selectGuardedBoolNegOps :: Decl -> [MuOp]
-selectGuardedBoolNegOps m = selectValOps' isGuardedRhs negateGuardedRhs m
+selectGuardedBoolNegOps m = selectValOps isGuardedRhs negateGuardedRhs m
   where isGuardedRhs GuardedRhs{} = True
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
         boolNegate (Qualifier expr) = [Qualifier (App (Var (UnQual (Ident "not"))) expr)]

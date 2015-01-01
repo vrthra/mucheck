@@ -2,6 +2,7 @@
 
 ## [0.2.0.1] (Rahul Gopinath)
   * Remove need to pass in module name
+  * Add new literal mutators
 
 ## [0.2.0.0] (Rahul Gopinath)
   * Better documentation
