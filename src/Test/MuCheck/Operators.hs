@@ -1,3 +1,4 @@
+-- | Available mutation operators
 module Test.MuCheck.Operators (comparators,
                           predNums,
                           binAriths,
@@ -24,7 +25,7 @@ binAriths = coupling (==>) $ map Symbol ["+", "-", "*", "/"]
 -- | functions on lists ["sum", "product", "maximum", "minimum", "head", "last"]
 arithLists = coupling (==>) $ map varfn ["sum", "product", "maximum", "minimum", "head", "last"]
 
--- utilities
+-- | wrapper to produce Function from String
 varfn :: String -> Exp
 varfn = Var . UnQual . Ident
 

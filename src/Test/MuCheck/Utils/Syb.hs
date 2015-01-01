@@ -3,7 +3,7 @@
 module Test.MuCheck.Utils.Syb (relevantOps, once) where
 
 import Data.Generics (Data, GenericM, gmapMo)
-import Test.MuCheck.MuOp (mkMp', MuOp, same)
+import Test.MuCheck.MuOp (mkMpMuOp, MuOp, same)
 import Control.Monad (MonadPlus, mplus)
 import Data.Maybe(isJust)
 
@@ -19,5 +19,5 @@ once f x = f x `mplus` gmapMo (once f) x
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
 relevantOps m oplst = filter (relevantOp m) $ filter (not . same) oplst
   -- check if an operator can be applied to a program
-  where relevantOp m' op = isJust $ once (mkMp' op) m'
+  where relevantOp m' op = isJust $ once (mkMpMuOp op) m'
 

@@ -1,3 +1,4 @@
+-- | Common print utilities
 module Test.MuCheck.Utils.Print where
 import Debug.Trace
 import Data.List(intercalate)
@@ -18,9 +19,11 @@ showAS = intercalate "\n"
 showA :: Show a => [a] -> String
 showA =  showAS . map show
 
+-- | convenience function for debug
 tt :: Show a => a -> a
 tt v = trace (">" ++ show v) v
 
+-- | Capture output and err of an IO action
 catchOutput :: IO a -> IO (a,String)
 catchOutput f = do
   tmpd <- getTemporaryDirectory

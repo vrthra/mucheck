@@ -4,6 +4,7 @@ module Test.MuCheck.Config where
 import Test.MuCheck.MuOp
 import Test.MuCheck.Operators (allOps)
 
+-- | The knob controlling if we want first order mutation.
 data GenerationMode
   = FirstOrderOnly
   | FirstAndHigherOrder

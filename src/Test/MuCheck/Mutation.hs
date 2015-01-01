@@ -7,7 +7,7 @@ import Language.Haskell.Exts(Literal(Int), Exp(App, Var, If), QName(UnQual),
         Name(Ident, Symbol), Decl(FunBind, PatBind),
         Pat(PVar), Match(Match), GuardedRhs(GuardedRhs), 
         prettyPrint, fromParseResult, parseFileContents)
-import Data.Generics (Data, Typeable, mkMp, listify)
+import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations)
 import Control.Monad (liftM, zipWithM)
 import System.Random
@@ -49,6 +49,7 @@ genMutantsWith args funcname filename  = liftM length $ do
             FirstOrderOnly -> mutatesN ops f fstOrder
             _              -> mutates ops f
 
+        getFunc :: String -> Module -> Decl
         getFunc fname ast' = head $ listify (isFunctionD fname) ast'
         programMutants ast' =  map (putDecls ast) $ mylst ast'
         mylst ast' = [myfn ast' x | x <- take (maxNumMutants args) allMutants]
@@ -58,24 +59,27 @@ genMutantsWith args funcname filename  = liftM length $ do
       [] -> return [] --  putStrLn "No applicable operator exists!"
       _  -> zipWithM writeFile (genFileNames filename) $ map prettyPrint (programMutants ast)
   where fstOrder = 1 -- first order
+        getASTFromFile :: String -> IO Module
         getASTFromFile fname = liftM parseModuleFromFile $ readFile fname
 
--- | Mutating a function's code using a bunch of mutation operators
--- (In all the three mutate functions, we assume working
+-- | Higher order mutation of a function's code using a bunch of mutation
+-- operators (In all the three mutate functions, we assume working
 -- with functions declaration.)
 mutates :: [MuOp] -> Decl -> [Decl]
-mutates ops m = filter (/= m) $ concatMap (mutatesN ops m) [1..]
+mutates ops m = filter (/= m) $ concat [mutatesN ops m x | x <- enumFrom 1]
 
--- the third argument specifies whether it's first order or higher order
+-- | First and higher order mutation.
+-- The third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms (c-1)]
 
 -- | Given a function, generate all mutants after applying applying 
--- op once (op might be applied at different places).E.g.:
--- op = "<" ==> ">" and there are two instances of "<"
+-- op once (op might be applied at different places).
+-- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
+-- "<" in the AST, then it will return two AST with each replaced.
 mutate :: MuOp -> Decl -> [Decl]
-mutate op m = once (mkMp' op) m \\ [m]
+mutate op m = once (mkMpMuOp op) m \\ [m]
 
 -- | is the parsed expression the function we are looking for?
 isFunctionD :: String -> Decl -> Bool
@@ -90,14 +94,14 @@ permMatches :: Decl -> [MuOp]
 permMatches d@(FunBind ms) = d ==>* map FunBind (permutations ms \\ [ms])
 permMatches _  = []
 
--- | generates transformations that removes one pattern match from a function
+-- | Generates transformations that removes one pattern match from a function
 -- definition.
 removeOnePMatch :: Decl -> [MuOp]
 removeOnePMatch (FunBind [_]) = []
 removeOnePMatch d@(FunBind ms) = d ==>* map FunBind (removeOneElem ms \\ [ms])
 removeOnePMatch _  = []
 
--- | generate sub-arrays with one less element
+-- | Generate sub-arrays with one less element
 removeOneElem :: Eq t => [t] -> [[t]]
 removeOneElem l = choose l (length l - 1)
 
@@ -107,22 +111,37 @@ removeOneElem l = choose l (length l - 1)
 parseModuleFromFile :: String -> Module
 parseModuleFromFile inp = fromParseResult $ parseFileContents inp
 
+-- | Get the declaration part from a module
 getDecls :: Module -> [Decl]
 getDecls (Module _ _ _ _ _ _ decls) = decls
 
+-- | Set the declaration in a module
 putDecls :: Module -> [Decl] -> Module
 putDecls (Module a b c d e f _) decls = Module a b c d e f decls
 
--- Define all operations on a value
-selectValOps :: (Data a, Eq a, Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> a -> [MuOp]
-selectValOps predicate fs m = concatMap (\x -> x ==>* map (\f -> f x) fs) vals
-  where vals = nub $ listify predicate m
+-- | For valops, unlike functions, we specify how any given literal value might
+-- change. So we take a predicate specifying how to recognize the literal
+-- value, a list of functions specifying how the literal can change, and the
+-- AST, and recurse over the AST looking for literals that match our predicate.
+-- When we find any, we apply the given list of functions to them, and produce
+-- a MuOp mapping between the original value and transformed value. This list
+-- of MuOp mappings are then returned.
+selectValOps :: (Typeable b, Mutable b, Eq b) => (b -> Bool) -> [b -> b] -> Decl -> [MuOp]
+selectValOps predicate fs m = concat [x ==>* map ($ x) fs | x <- vals]
+  where  vals = nub $ listify predicate m
 
-selectValOps' :: (Data a, Eq a, Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> a -> [MuOp]
-selectValOps' predicate f m = concatMap (\x -> x ==>* f x) vals
+-- We can not combine selectValOps with selectValOps' because we will have
+-- duplicates in the transformations, which only selectValOps can handle.
+
+-- | Similar to `selectValOps` except that rather than have a list of functions
+-- to transform literals, we have a function that takesn one value, and returns
+-- a list of literals.
+selectValOps' :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Decl -> [MuOp]
+selectValOps' predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
-selectIntOps :: (Data a, Eq a) => a -> [MuOp]
+-- | Look for int values in AST, and return applicable MuOp transforms.
+selectIntOps :: Decl -> [MuOp]
 selectIntOps m = selectValOps isInt [
       \(Int i) -> Int (i + 1),
       \(Int i) -> Int (i - 1),
@@ -131,14 +150,14 @@ selectIntOps m = selectValOps isInt [
   where isInt (Int _) = True
         isInt _       = False
 
--- | negating boolean in if/else statements
-selectIfElseBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
+-- | Negating boolean in if/else statements
+selectIfElseBoolNegOps :: Decl -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf [\(If e1 e2 e3) -> If (App (Var (UnQual (Ident "not"))) e1) e2 e3] m
   where isIf If{} = True
         isIf _    = False
 
--- | negating boolean in Guards
-selectGuardedBoolNegOps :: (Data a, Eq a) => a -> [MuOp]
+-- | Negating boolean in Guards
+selectGuardedBoolNegOps :: Decl -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps' isGuardedRhs negateGuardedRhs m
   where isGuardedRhs GuardedRhs{} = True
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
