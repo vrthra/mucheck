@@ -4,7 +4,7 @@ import Test.Hspec
 import System.Random
 import qualified Test.MuCheck.Utils.Syb as S
 import Control.Monad (MonadPlus, mplus, mzero)
-import Test.MuCheck.MuOp (mkMp', MuOp)
+import Test.MuCheck.MuOp (mkMpMuOp, MuOp)
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
 import Language.Haskell.Exts
 
