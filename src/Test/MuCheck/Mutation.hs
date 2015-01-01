@@ -157,7 +157,7 @@ selectLitOps m = selectValOps isLit convert m
 
 -- | Negating boolean in if/else statements
 selectIfElseBoolNegOps :: Decl -> [MuOp]
-selectIfElseBoolNegOps m = selectValOps isIf (\(If e1 e2 e3) -> [If (App (Var (UnQual (Ident "not"))) e1) e2 e3]) m
+selectIfElseBoolNegOps m = selectValOps isIf (\(If e1 e2 e3) -> [If e1 e3 e2]) m
   where isIf If{} = True
         isIf _    = False
 
