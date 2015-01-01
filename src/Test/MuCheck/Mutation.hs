@@ -86,8 +86,12 @@ mutate op m = once (mkMpMuOp op) m \\ [m]
 isFunctionD :: String -> Decl -> Bool
 isFunctionD n (FunBind (Match _ (Ident n') _ _ _ _ : _)) = n == n'
 isFunctionD n (FunBind (Match _ (Symbol n') _ _ _ _ : _)) = n == n'
+-- we also consider where clauses
 isFunctionD n (PatBind _ (PVar (Ident n')) _ _)          = n == n'
 isFunctionD _ _                                  = False
+-- but not let, because it has a different type, and for our purposes
+-- this is sufficient.
+-- (Let Binds Exp) :: Exp
 
 -- | Generate all operators for permutating pattern matches in
 -- a function. We don't deal with permutating guards and case for now.
