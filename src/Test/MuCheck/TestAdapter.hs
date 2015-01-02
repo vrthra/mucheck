@@ -7,8 +7,8 @@ import Data.Typeable
 -- | Wrapper for interpreter output
 type InterpreterOutput a = Either I.InterpreterError (String, a)
 
--- | Filename of Mutant
-type MutantFilename = String
+-- | Holding mutant information
+type Mutant = String
 
 -- | Summary of test run
 newtype Summary = Summary String
@@ -16,7 +16,7 @@ newtype Summary = Summary String
 -- | Interface to be implemented by a test framework
 class Typeable s => Summarizable s where
   -- | Summary of a test run
-  testSummary :: [MutantFilename] -> [InterpreterOutput s] -> Summary
+  testSummary :: [Mutant] -> [InterpreterOutput s] -> Summary
   -- | Was the test run a success
   isSuccess :: s -> Bool
   -- | Was the test run a failure

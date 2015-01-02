@@ -16,20 +16,21 @@ import Test.MuCheck.MuOp
 import Test.MuCheck.Utils.Syb
 import Test.MuCheck.Utils.Common
 import Test.MuCheck.Config
+import Test.MuCheck.TestAdapter
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
-genMutants :: String -> FilePath -> IO [(String, String)]
+genMutants :: String -> FilePath -> IO [Mutant]
 genMutants = genMutantsWith defaultConfig
 
 -- | The `genMutantsWith` function takes configuration function to mutate,
 -- filename the function is defined in, and produces mutants in the same
 -- directory as the filename, and returns the number of mutants produced.
-genMutantsWith :: Config -> String -> FilePath -> IO [(String, String)]
+genMutantsWith :: Config -> String -> FilePath -> IO [Mutant]
 genMutantsWith args func filename  = do
       g <- genRandomSeed
       f <- readFile filename
-      return $ zip (genFileNames filename) $ genMutantsForSrc defaultConfig func f (sampler args g)
+      return $ genMutantsForSrc defaultConfig func f (sampler args g)
 
 -- | Wrapper around sampleF that returns correct sampling ratios according to
 -- configuration passed.
@@ -39,7 +40,7 @@ sampler args g m = sampleF g (getSample m args)
 -- | The `genMutantsForSrc` takes the function name to mutate, source where it
 -- is defined, and a sampling function, and returns the mutated sources selected
 -- using sampling function.
-genMutantsForSrc :: Config -> String -> String -> (MuVars -> [MuOp] -> [MuOp]) -> [String]
+genMutantsForSrc :: Config -> String -> String -> (MuVars -> [MuOp] -> [MuOp]) -> [Mutant]
 genMutantsForSrc args funcname src sampleFn = map prettyPrint (programMutants astMod)
   where astMod = getASTFromStr src
         f = getFunc funcname astMod
