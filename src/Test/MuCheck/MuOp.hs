@@ -1,3 +1,4 @@
+{-#  LANGUAGE Rank2Types #-}
 -- | Mutation operators
 module Test.MuCheck.MuOp (MuOp
           , Mutable(..)
@@ -24,26 +25,23 @@ data MuOp = N  (Name, Name)
 
 -- boilerplate code
 
+apply :: (forall a. (Eq a, G.Typeable a, Show a) => (a,a) -> c) -> MuOp -> c
+apply f (N  m) = f m
+apply f (QN m) = f m
+apply f (QO m) = f m
+apply f (E  m) = f m
+apply f (D  m) = f m
+apply f (L  m) = f m
+apply f (G  m) = f m
+
 -- | The function `same` applies on a `MuOP` determining if transformation is
 -- between same values.
 same :: MuOp -> Bool
-same (N (a,b)) = a == b
-same (QN (a,b)) = a == b
-same (QO (a,b)) = a == b
-same (E (a,b)) = a == b
-same (D (a,b)) = a == b
-same (L (a,b)) = a == b
-same (G (a,b)) = a == b
+same = apply $ uncurry (==)
 
 -- | A wrapper over mkMp
 mkMpMuOp :: (MonadPlus m, G.Typeable a) => MuOp -> a -> m a
-mkMpMuOp (N (s,t))  = G.mkMp (s ~~> t)
-mkMpMuOp (QN (s,t)) = G.mkMp (s ~~> t)
-mkMpMuOp (QO (s,t)) = G.mkMp (s ~~> t)
-mkMpMuOp (E (s,t))  = G.mkMp (s ~~> t)
-mkMpMuOp (D (s,t))  = G.mkMp (s ~~> t)
-mkMpMuOp (L (s,t))  = G.mkMp (s ~~> t)
-mkMpMuOp (G (s,t))  = G.mkMp (s ~~> t)
+mkMpMuOp = apply $ G.mkMp . (uncurry (~~>))
 
 -- | Show a specified mutation
 showM :: (Show a1, Show a) => (a, a1) -> String
@@ -51,13 +49,7 @@ showM (s, t) = "\n" ++ show s ++ " ==> " ++ show t
 
 -- | MuOp instance for Show
 instance Show MuOp where
-  show (N a)  = showM a
-  show (QN a) = showM a
-  show (QO a) = showM a
-  show (E a)  = showM a
-  show (D a)  = showM a
-  show (L a)  = showM a
-  show (G a)  = showM a
+  show = apply showM
 
 -- end boilerplate code
 
