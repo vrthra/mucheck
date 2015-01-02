@@ -67,7 +67,6 @@ test-suite spec
                     mtl>=2.1.2,
                     filepath >= 1.1.0,
                     hspec>= 2.0,
-                    hspec-core >= 2.0,
                     MuCheck,
                     random >= 1.0.0,
                     directory >= 1.2.1.0,

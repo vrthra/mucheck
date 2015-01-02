@@ -24,12 +24,12 @@ genFileNames s =  map newname [1..]
           newname :: Int -> String
           newname i= name ++ "_" ++ show i ++ ext
 
--- | The `replace` function replaces first element in a list given old and new values as a pair
-replace :: Eq a => (a,a) -> [a] -> [a]
-replace (o,n) lst = map replaceit lst
-  where replaceit v
-          | v == o = n
-          | otherwise = v
+-- | The `replaceFst` function replaces first matching element in a list given old and new values as a pair
+replaceFst :: Eq a => (a,a) -> [a] -> [a]
+replaceFst _ [] = []
+replaceFst (o, n) (v:vs)
+  | v == o = n : vs
+  | otherwise   = v : replaceFst (o,n) vs
 
 -- | The `sample` function takes a random generator and chooses a random sample
 -- subset of given size.

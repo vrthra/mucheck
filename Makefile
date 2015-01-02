@@ -1,3 +1,7 @@
+build:
+	cabal configure --enable-tests
+	cabal build
+
 hlint:
 	(cd support; ~/.cabal/bin/hlint `find ../src -name \*.hs`)
 
@@ -12,9 +16,6 @@ sandbox:
 	mkdir -p ../mucheck-sandbox
 	cabal sandbox init --sandbox ../mucheck-sandbox
 
-build:
-	cabal build
-
 install:
 	cabal install
 
@@ -27,3 +28,7 @@ prepare:
 clean:
 	- rm Examples/*
 	- rm *.log
+
+.PHONY: test
+test:
+	cabal test

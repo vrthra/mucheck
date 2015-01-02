@@ -41,19 +41,22 @@ sampler args g m = sampleF g (getSample m args)
 -- is defined, and a sampling function, and returns the mutated sources selected
 -- using sampling function.
 genMutantsForSrc :: Config -> String -> String -> (MuVars -> [MuOp] -> [MuOp]) -> [Mutant]
-genMutantsForSrc args funcname src sampleFn = map prettyPrint (programMutants astMod)
+genMutantsForSrc args funcname src sampleFn = map prettyPrint programMutants
   where astMod = getASTFromStr src
         f = getFunc funcname astMod
 
         ops, swapOps, valOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
         ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
         swapOps = sampleFn MutatePatternMatch $ permMatches f ++ removeOnePMatch f
-        valOps = sampleFn MutateValues $ selectLitOps f
+        valOps = sampleFn MutateValues $ selectLitOps f ++ selectBLitOps f
         ifElseNegOps = sampleFn MutateNegateIfElse $ selectIfElseBoolNegOps f
         guardedBoolNegOps = sampleFn MutateNegateGuards $ selectGuardedBoolNegOps f
 
         patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
-        allMutants = nub $ patternMatchMutants ++ operatorMutants ++ ifElseNegMutants ++ guardedNegMutants
+        allMutants = nub $ patternMatchMutants ++
+                           operatorMutants ++
+                           ifElseNegMutants ++
+                           guardedNegMutants
 
         patternMatchMutants = mutatesN swapOps f fstOrder
         ifElseNegMutants = mutatesN ifElseNegOps f fstOrder
@@ -62,13 +65,18 @@ genMutantsForSrc args funcname src sampleFn = map prettyPrint (programMutants as
             FirstOrderOnly -> mutatesN ops f fstOrder
             _              -> mutates ops f
 
-        getFunc :: String -> Module -> Decl
-        getFunc fname ast = head $ listify (isFunctionD fname) ast
-        programMutants ast =  map (putDecls ast) $ mylst ast
-        mylst ast = [myfn ast x | x <- allMutants]
-        myfn ast fn = replace (getFunc funcname ast, fn) (getDecls ast)
+        programMutants :: [Module]
+        programMutants =  map (putDecls astMod) [replaceDef f fn astMod | fn <- allMutants]
 
         fstOrder = 1 -- first order
+
+-- | Replace old function definition with a new one in the AST
+replaceDef :: Decl -> Decl -> Module -> [Decl]
+replaceDef oldf newf (Module _ _ _ _ _ _ decls) = replaceFst (oldf, newf) decls
+
+-- | Fetch the function definition from module
+getFunc :: String -> Module -> Decl
+getFunc fname ast = head $ listify (isFunctionD fname) ast
 
 -- | Higher order mutation of a function's code using a bunch of mutation
 -- operators (In all the three mutate functions, we assume working
@@ -80,7 +88,7 @@ mutates ops m = filter (/= m) $ concat [mutatesN ops m x | x <- enumFrom 1]
 -- The third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
-mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms (c-1)]
+mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 
 -- | Given a function, generate all mutants after applying applying
 -- op once (op might be applied at different places).
@@ -123,10 +131,6 @@ removeOneElem l = choose l (length l - 1)
 getASTFromStr :: String -> Module
 getASTFromStr fname = fromParseResult $ parseFileContents fname
 
--- | Get the declaration part from a module
-getDecls :: Module -> [Decl]
-getDecls (Module _ _ _ _ _ _ decls) = decls
-
 -- | Set the declaration in a module
 putDecls :: Module -> [Decl] -> Module
 putDecls (Module a b c d e f _) decls = Module a b c d e f decls
@@ -143,6 +147,7 @@ selectValOps predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
 -- | Look for literal values in AST, and return applicable MuOp transforms.
+-- Unfortunately booleans are not handled here.
 selectLitOps :: Decl -> [MuOp]
 selectLitOps m = selectValOps isLit convert m
   where isLit (Int _) = True
@@ -165,6 +170,16 @@ selectLitOps m = selectValOps isLit convert m
         convert (String _) = map String $ nub [""]
         convert (PrimString _) = map PrimString $ nub [""]
         convert (PrimWord i) = map PrimWord $ nub [i + 1, i - 1, 0, 1]
+
+-- | Convert Boolean Literals
+selectBLitOps :: Decl -> [MuOp]
+selectBLitOps m = selectValOps isLit convert m
+  where isLit (Ident "True") = True
+        isLit (Ident "False") = True
+        isLit _ = False
+        convert (Ident "True") = [Ident "False"]
+        convert (Ident "False") = [Ident "True"]
+        convert _ = []
 
 -- | Negating boolean in if/else statements
 selectIfElseBoolNegOps :: Decl -> [MuOp]
