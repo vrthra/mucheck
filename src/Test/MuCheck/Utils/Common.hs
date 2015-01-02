@@ -1,11 +1,11 @@
 -- | Common functions used by MuCheck
 module Test.MuCheck.Utils.Common where
 
-import System.FilePath (splitExtension)
 import System.Random
 import Data.List
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Control.Monad (liftM)
+import qualified Data.Hashable as H
 
 -- | The `choose` function generates subsets of a given size
 choose :: [a] -> Int -> [[a]]
@@ -15,14 +15,6 @@ choose xs n = filter (\x -> length x == n) $ subsequences xs
 -- given function to each
 coupling :: Eq a => (a -> a -> t) -> [a] -> [t]
 coupling fn ops = [fn o1 o2 | o1 <- ops, o2 <- ops, o1 /= o2]
-
-
--- | The `genFileNames` function lazily generates filenames of mutants
-genFileNames :: String -> [String]
-genFileNames s =  map newname [1..]
-    where (name, ext) = splitExtension s
-          newname :: Int -> String
-          newname i= name ++ "_" ++ show i ++ ext
 
 -- | The `replaceFst` function replaces first matching element in a list given old and new values as a pair
 replaceFst :: Eq a => (a,a) -> [a] -> [a]
@@ -77,4 +69,9 @@ genRandomSeed = liftM (mkStdGen . round) getPOSIXTime
 -- a pair
 curryM :: (t1 -> t2 -> m t) -> (t1, t2) -> m t
 curryM fn (a,b) = fn a b
+
+-- | A simple hash
+hash :: String -> String
+hash s = (if h < 0 then "x" else "y") ++ show (abs h)
+  where h = H.hash s
 

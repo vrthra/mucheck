@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.2.1.1] (Rahul Gopinath)
+  * Make it usable from d-mucheck
+
 ## [0.2.1.0] (Rahul Gopinath)
   * Remove need to pass in module name
   * Add new literal mutators including booleans

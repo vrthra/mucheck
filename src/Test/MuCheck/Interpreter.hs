@@ -1,5 +1,5 @@
 -- | The entry point for mucheck
-module Test.MuCheck.Interpreter (evaluateMutants) where
+module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMyStr, summarizeResults) where
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans (liftIO)
@@ -10,16 +10,16 @@ import Data.Either (partitionEithers, rights)
 import Data.List(groupBy, sortBy)
 import Data.Function (on)
 import System.Directory (createDirectoryIfMissing)
-import Data.Hash.MD5 (md5s, Str(..))
 
 import Test.MuCheck.TestAdapter
+import Test.MuCheck.Utils.Common
 
 -- | Given the list of tests suites to check, run one test suite at a time on
 -- all mutants.
 evaluateMutants :: (Summarizable a, Show a) => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [String] -> FilePath -> IO ()
 evaluateMutants testSummaryFn mutantFiles evalSrcLst logFile  = do
   results <- mapM (runCodeOnMutants mutantFiles) evalSrcLst
-  let singleTestSummaries = zip evalSrcLst $ map (mySummaryFn testSummaryFn mutantFiles) results
+  let singleTestSummaries = zip evalSrcLst $ map (summarizeResults testSummaryFn mutantFiles) results
       tssum  = multipleCheckSummary (isSuccess . snd) results
   -- print results to terminal
   putStrLn $ delim ++ "Overall Results:"
@@ -54,8 +54,8 @@ data TSum = TSum {tsumNumMutants::Int,
                   tsumOthers::Int,
                   tsumLog::String}
 
-mySummaryFn :: Summarizable a => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [InterpreterOutput a] -> TSum
-mySummaryFn testSummaryFn mutantFiles results = TSum {
+summarizeResults :: Summarizable a => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [InterpreterOutput a] -> TSum
+summarizeResults testSummaryFn mutantFiles results = TSum {
     tsumNumMutants = r,
     tsumLoadError = l,
     tsumNotKilled = s,
@@ -74,16 +74,18 @@ mySummaryFn testSummaryFn mutantFiles results = TSum {
 -- | Run one test suite on all mutants
 runCodeOnMutants :: Typeable t => [Mutant] -> String -> IO [InterpreterOutput t]
 runCodeOnMutants mutantFiles evalStr = mapM (evalMyStr evalStr) mutantFiles
-  where evalMyStr eStr m = liftM fst $ do
-          createDirectoryIfMissing True ".mutants"
-          let fPath = ".mutants/" ++ md5s (Str m) ++ ".hs"
-          -- Hint does not provide us a way to evaluate the module without
-          -- writing it to disk first, so we go for this hack.
-          -- We write the temporary file to disk, run interpreter on it, get
-          -- the result and remove the file
-          writeFile fPath m
-          putStrLn $ "> " ++ fPath ++ " " ++ evalStr
-          catchOutput (I.runInterpreter (evalMethod fPath eStr))
+
+evalMyStr :: Typeable a => String -> String -> IO (InterpreterOutput a)
+evalMyStr eStr m = liftM fst $ do
+  createDirectoryIfMissing True ".mutants"
+  let fPath = ".mutants/" ++ hash m ++ ".hs"
+  -- Hint does not provide us a way to evaluate the module without
+  -- writing it to disk first, so we go for this hack.
+  -- We write the temporary file to disk, run interpreter on it, get
+  -- the result and remove the file
+  writeFile fPath m
+  putStrLn $ "> " ++ fPath ++ " " ++ eStr
+  catchOutput $ I.runInterpreter (evalMethod fPath eStr)
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 --

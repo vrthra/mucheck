@@ -1,7 +1,7 @@
 module Test.MuCheck.Utils.CommonSpec (main, spec) where
 import Test.Hspec
 import System.Random
-import Test.MuCheck.Utils.Common (replaceFst, genFileNames, choose, remElt, sample, sampleF, coupling)
+import Test.MuCheck.Utils.Common (replaceFst, choose, remElt, sample, sampleF, coupling)
 
 main :: IO ()
 main = hspec spec
@@ -17,10 +17,6 @@ spec = do
 
     it "if given a list with value replaceFst" $ do
       replaceFst (1,2) ([1]::[Int]) `shouldBe` ([2] :: [Int])
-
-  describe "genFileNames" $ do
-    it "if given list, generate filenames" $ do
-      head (genFileNames "mytest.hs") `shouldBe` "mytest_1.hs"
 
   describe "choose" $ do
     it "if given empty return empty" $ do
