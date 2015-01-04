@@ -6,7 +6,7 @@ import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans (liftIO)
 import Control.Monad (liftM)
 import Data.Typeable
-import Test.MuCheck.Utils.Print (showA, showAS, (./.), catchOutput)
+import Test.MuCheck.Utils.Print (showA, catchOutput)
 import Data.Either (partitionEithers, rights)
 import Data.List(groupBy, sortBy)
 import Data.Function (on)
@@ -15,48 +15,35 @@ import System.Directory (createDirectoryIfMissing)
 import Test.MuCheck.TestAdapter
 import Test.MuCheck.Utils.Common
 
--- | Given the list of tests suites to check, run one test suite at a time on
--- all mutants.
-evaluateMutants :: (Summarizable a, Show a) => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [String] -> FilePath -> IO ()
-evaluateMutants testSummaryFn mutantFiles evalSrcLst logFile  = do
-  results <- mapM (runCodeOnMutants mutantFiles) evalSrcLst
-  let singleTestSummaries = zip evalSrcLst $ map (summarizeResults testSummaryFn mutantFiles) results
-      tssum  = multipleCheckSummary (isSuccess . snd) results
-  -- print results to terminal
-  putStrLn $ delim ++ "Overall Results:"
-  putStrLn $ terminalSummary tssum
-  putStrLn $ showAS $ map showBrief singleTestSummaries
-  putStr delim
-  -- print results to logfile
-  appendFile logFile $ "OVERALL RESULTS:\n" ++ tssumLog tssum ++ showAS (map showDetail singleTestSummaries)
-  return ()
-  where showDetail (method, msum) = delim ++ showBrief (method, msum) ++ "\n" ++ tsumLog msum
-        showBrief (method, msum) = showAS [method,
-           "\tTotal number of mutants:\t" ++ show (tsumNumMutants msum),
-           "\tFailed to Load:\t" ++ cpx tsumLoadError,
-           "\tNot Killed:\t" ++ cpx tsumNotKilled,
-           "\tKilled:\t" ++ cpx tsumKilled,
-           "\tOthers:\t" ++ cpx tsumOthers,
-           ""]
-           where cpx fn = show (fn msum) ++ " " ++ fn msum ./. tsumNumMutants msum
-        terminalSummary tssum = showAS [
-          "Total number of mutants:\t" ++ show (tssumNumMutants tssum),
-          "Total number of alive mutants:\t" ++ cpx tssumAlive,
-          "Total number of load errors:\t" ++ cpx tssumErrors,
-          ""]
-           where cpx fn = show (fn tssum) ++ " " ++ fn tssum ./. tssumNumMutants tssum
-        delim = "\n" ++ replicate 25 '=' ++ "\n"
-
-
-data TSum = TSum {tsumNumMutants::Int,
+-- | Datatype to hold results of a single test run (for all mutants).
+-- We accept a list of tests to execute, and run each test against all of
+-- mutants.
+data TSum = TSum {tsumTest::String,
+                  tsumNumMutants::Int,
                   tsumLoadError::Int,
                   tsumNotKilled::Int,
                   tsumKilled::Int,
                   tsumOthers::Int,
                   tsumLog::String}
 
-summarizeResults :: Summarizable a => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [InterpreterOutput a] -> TSum
-summarizeResults testSummaryFn mutantFiles results = TSum {
+-- | Datatype to hold results of the entire run
+data TSSum = TSSum {tssumNumMutants::Int,
+                    tssumAlive::Int,
+                    tssumErrors::Int,
+                    tssumLog::String}
+
+-- | Given the list of tests suites to check, run one test suite at a time on
+-- all mutants.
+evaluateMutants :: (Summarizable a, Show a) => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [String] -> FilePath -> IO (TSSum, [TSum])
+evaluateMutants testSummaryFn mutantFiles evalSrcLst logFile  = do
+  results <- mapM (runCodeOnMutants mutantFiles) evalSrcLst
+  let singleTestSummaries = map (summarizeResults testSummaryFn mutantFiles) $ zip evalSrcLst results
+      tssum  = multipleCheckSummary (isSuccess . snd) results
+  return (tssum, singleTestSummaries)
+
+summarizeResults :: Summarizable a => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> (String, [InterpreterOutput a]) -> TSum
+summarizeResults testSummaryFn mutantFiles (test, results) = TSum {
+    tsumTest = test,
     tsumNumMutants = r,
     tsumLoadError = l,
     tsumNotKilled = s,
@@ -101,11 +88,6 @@ evalMethod fileName evalStr = do
   result <- I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
   return (fileName, result)
 
--- | Datatype to hold results of the entire run
-data TSSum = TSSum {tssumNumMutants::Int,
-                    tssumAlive::Int,
-                    tssumErrors::Int,
-                    tssumLog::String}
 
 -- | Summarize the entire run
 multipleCheckSummary :: Show b => ((String, b) -> Bool) -> [[InterpreterOutput b]] -> TSSum
