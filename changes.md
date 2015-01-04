@@ -2,6 +2,7 @@
 
 ## [0.2.1.1] (Rahul Gopinath)
   * Make it usable from d-mucheck
+  * Include logfile name for captured output (or the log string otherwise).
 
 ## [0.2.1.0] (Rahul Gopinath)
   * Remove need to pass in module name

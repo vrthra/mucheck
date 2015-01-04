@@ -7,6 +7,7 @@ import Control.Monad (liftM)
 
 import GHC.IO.Handle
 import System.IO
+import System.Directory
 import System.Environment
 import System.IO.Temp (withSystemTempFile)
 
@@ -27,20 +28,32 @@ tt :: Show a => a -> a
 tt v = trace (">" ++ show v) v
 
 -- | Capture output and err of an IO action
-catchOutput :: IO a -> IO (a,String)
-catchOutput f = do
+catchOutputStr :: IO a -> IO (a,String)
+catchOutputStr f = do
   isdebug <- lookupEnv "MuDEBUG"
   case isdebug of 
     Just _ -> liftM (,"") f
     Nothing -> withSystemTempFile "_mucheck" $ \tmpf tmph -> do
-        stdout_dup <- hDuplicate stdout
-        stderr_dup <- hDuplicate stderr
-        hDuplicateTo tmph stdout
-        hDuplicateTo tmph stderr
-        hClose tmph
-        res <- f
-        hDuplicateTo stdout_dup stdout
-        hDuplicateTo stderr_dup stderr
+        res <- redirectToHandle f tmph
         str <- readFile tmpf
+        removeFile tmpf
         return (res,str)
+
+-- | Capture output and err of an IO action to a file
+catchOutput :: String -> IO a -> IO a
+catchOutput fn f = do
+  withFile fn WriteMode (redirectToHandle f)
+
+-- | Redirect out and err to handle
+redirectToHandle :: IO b -> Handle -> IO b
+redirectToHandle f tmph = do
+    stdout_dup <- hDuplicate stdout
+    stderr_dup <- hDuplicate stderr
+    hDuplicateTo tmph stdout
+    hDuplicateTo tmph stderr
+    hClose tmph
+    res <- f
+    hDuplicateTo stdout_dup stdout
+    hDuplicateTo stderr_dup stderr
+    return res
 

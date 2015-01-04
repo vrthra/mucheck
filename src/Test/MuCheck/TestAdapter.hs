@@ -5,7 +5,7 @@ import qualified Language.Haskell.Interpreter as I
 import Data.Typeable
 
 -- | Wrapper for interpreter output
-type InterpreterOutput a = Either I.InterpreterError (String, a)
+type InterpreterOutput a = (Either I.InterpreterError (String, a), String)
 
 -- | Holding mutant information
 type Mutant = String

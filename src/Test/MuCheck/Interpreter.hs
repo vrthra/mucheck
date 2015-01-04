@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 -- | The entry point for mucheck
 module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMyStr, summarizeResults) where
 
@@ -62,7 +63,7 @@ summarizeResults testSummaryFn mutantFiles results = TSum {
     tsumKilled = f,
     tsumOthers = g,
     tsumLog = logStr}
-  where (errorCases, executedCases) = partitionEithers results
+  where (errorCases, executedCases) = partitionEithers $ map fst results
         [successCases, failureCases, otherCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isOther]
         r = length results
         l = length errorCases
@@ -76,7 +77,7 @@ runCodeOnMutants :: Typeable t => [Mutant] -> String -> IO [InterpreterOutput t]
 runCodeOnMutants mutantFiles evalStr = mapM (evalMyStr evalStr) mutantFiles
 
 evalMyStr :: Typeable a => String -> String -> IO (InterpreterOutput a)
-evalMyStr eStr m = liftM fst $ do
+evalMyStr eStr m = do
   createDirectoryIfMissing True ".mutants"
   let fPath = ".mutants/" ++ hash m ++ ".hs"
   -- Hint does not provide us a way to evaluate the module without
@@ -84,8 +85,8 @@ evalMyStr eStr m = liftM fst $ do
   -- We write the temporary file to disk, run interpreter on it, get
   -- the result and remove the file
   writeFile fPath m
-  putStrLn $ "> " ++ fPath ++ " " ++ eStr
-  catchOutput $ I.runInterpreter (evalMethod fPath eStr)
+  let logF = (fPath ++ ".log")
+  liftM (, logF) $ catchOutput logF $ I.runInterpreter (evalMethod fPath eStr)
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 --
@@ -115,7 +116,7 @@ multipleCheckSummary isSuccessFunction results
                        tssumAlive = countAlive,
                        tssumErrors= countErrors,
                        tssumLog = logMsg}
-  where executedCases = groupBy ((==) `on` fst) . sortBy (compare `on` fst) . rights $ concat results
+  where executedCases = groupBy ((==) `on` fst) . sortBy (compare `on` fst) . rights $ map fst $ concat results
         allSuccesses = [rs | rs <- executedCases, length rs == length results, all isSuccessFunction rs]
         countAlive = length allSuccesses
         countErrors = countMutants - length executedCases
