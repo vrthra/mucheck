@@ -1,16 +1,16 @@
 -- | MuCheck base module
 module Test.MuCheck (mucheck) where
-import Control.Monad (void)
 
 import Test.MuCheck.Mutation
 import Test.MuCheck.Config
 import Test.MuCheck.Utils.Common
-import Test.MuCheck.Interpreter (evaluateMutants)
+import Test.MuCheck.Interpreter (evaluateMutants, MutantSummary(..))
 import Test.MuCheck.TestAdapter
+import Test.MuCheck.AnalysisSummary
 
 -- | Perform mutation analysis
-mucheck :: (Summarizable a, Show a) => ([Mutant] -> [InterpreterOutput a] -> Summary) -> String -> FilePath -> [String] -> IO ()
-mucheck resFn mFn file args = do
-  mutants <- genMutants mFn file >>= rSample (maxNumMutants defaultConfig)
-  void $ evaluateMutants resFn mutants args ("./mucheck-" ++ mFn ++ ".log")
+mucheck :: (Summarizable a, Show a) => (Mutant -> TestStr -> InterpreterOutput a -> Summary) -> String -> String -> [TestStr] -> IO (MAnalysisSummary, [MutantSummary])
+mucheck resFn mutatingFn moduleFile tests = do
+  mutants <- genMutants mutatingFn moduleFile >>= rSample (maxNumMutants defaultConfig)
+  evaluateMutants resFn mutants tests
 

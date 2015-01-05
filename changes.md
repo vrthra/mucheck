@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.0.0] (Rahul Gopinath)
+  * Heavy refacoring, now summary is based on mutations rather than tests.
+  * Mutation fails fast on either load errors or test failures
+
 ## [0.2.1.1] (Rahul Gopinath)
   * Make it usable from d-mucheck
   * Include logfile name for captured output (or the log string otherwise).

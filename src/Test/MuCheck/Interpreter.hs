@@ -1,109 +1,100 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, MultiWayIf, DeriveDataTypeable #-}
 -- | The entry point for mucheck
-module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMyStr, summarizeResults) where
+module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary(..)) where
 
 import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans (liftIO)
 import Control.Monad (liftM)
 import Data.Typeable
-import Test.MuCheck.Utils.Print (showA, catchOutput)
-import Data.Either (partitionEithers, rights)
-import Data.List(groupBy, sortBy)
-import Data.Function (on)
+import Test.MuCheck.Utils.Print (catchOutput)
+import Data.Either (partitionEithers)
 import System.Directory (createDirectoryIfMissing)
+import System.Environment (withArgs)
 
 import Test.MuCheck.TestAdapter
 import Test.MuCheck.Utils.Common
-
--- | Datatype to hold results of a single test run (for all mutants).
--- We accept a list of tests to execute, and run each test against all of
--- mutants.
-data TSum = TSum {tsumTest::String,
-                  tsumNumMutants::Int,
-                  tsumLoadError::Int,
-                  tsumNotKilled::Int,
-                  tsumKilled::Int,
-                  tsumOthers::Int,
-                  tsumLog::String}
-
--- | Datatype to hold results of the entire run
-data TSSum = TSSum {tssumNumMutants::Int,
-                    tssumAlive::Int,
-                    tssumErrors::Int,
-                    tssumLog::String}
-
--- | Given the list of tests suites to check, run one test suite at a time on
--- all mutants.
-evaluateMutants :: (Summarizable a, Show a) => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> [String] -> FilePath -> IO (TSSum, [TSum])
-evaluateMutants testSummaryFn mutantFiles evalSrcLst logFile  = do
-  results <- mapM (runCodeOnMutants mutantFiles) evalSrcLst
-  let singleTestSummaries = map (summarizeResults testSummaryFn mutantFiles) $ zip evalSrcLst results
-      tssum  = multipleCheckSummary (isSuccess . snd) results
-  return (tssum, singleTestSummaries)
-
-summarizeResults :: Summarizable a => ([Mutant] -> [InterpreterOutput a] -> Summary) -> [Mutant] -> (String, [InterpreterOutput a]) -> TSum
-summarizeResults testSummaryFn mutantFiles (test, results) = TSum {
-    tsumTest = test,
-    tsumNumMutants = r,
-    tsumLoadError = l,
-    tsumNotKilled = s,
-    tsumKilled = f,
-    tsumOthers = g,
-    tsumLog = logStr}
-  where (errorCases, executedCases) = partitionEithers $ map fst results
-        [successCases, failureCases, otherCases] = map (\c -> filter (c . snd) executedCases) [isSuccess, isFailure, isOther]
-        r = length results
-        l = length errorCases
-        [s,f,g] = map length [successCases, failureCases, otherCases]
-        -- errorFiles = mutantFiles \\ map fst executedCases
-        Summary logStr = testSummaryFn mutantFiles results
+import Test.MuCheck.AnalysisSummary
 
 
--- | Run one test suite on all mutants
-runCodeOnMutants :: Typeable t => [Mutant] -> String -> IO [InterpreterOutput t]
-runCodeOnMutants mutantFiles evalStr = mapM (evalMyStr evalStr) mutantFiles
+-- | Data type to hold results of a single test execution
+data MutantSummary = MSumError Mutant String [Summary]         -- errorStr
+                   | MSumAlive Mutant [Summary]
+                   | MSumKilled Mutant [Summary]
+                   | MSumOther Mutant [Summary]
+                   deriving (Show, Typeable)
 
-evalMyStr :: Typeable a => String -> String -> IO (InterpreterOutput a)
-evalMyStr eStr m = do
-  createDirectoryIfMissing True ".mutants"
-  let fPath = ".mutants/" ++ hash m ++ ".hs"
+-- | Given the list of tests suites to check, run the test suite on mutants.
+evaluateMutants :: (Summarizable a, Show a) => (Mutant -> TestStr -> InterpreterOutput a -> Summary) -> [Mutant] -> [String] -> IO (MAnalysisSummary, [MutantSummary])
+evaluateMutants testSummaryFn mutants tests = do
+  results <- mapM (evalMutant tests) mutants -- [InterpreterOutput t]
+  let singleTestSummaries = map (summarizeResults testSummaryFn tests) $ zip mutants results
+      ma  = fullSummary tests results
+  return (ma, singleTestSummaries)
+
+summarizeResults :: Summarizable a => (Mutant -> TestStr -> InterpreterOutput a -> Summary) -> [String] -> (Mutant, [InterpreterOutput a]) -> MutantSummary
+summarizeResults testSummaryFn tests (mutant, ioresults) = case last results of -- the last result should indicate status because we dont run if there is error.
+  Left err -> MSumError mutant (show err) logS
+  Right out -> myresult out
+  where results = map _io ioresults
+        myresult out | isSuccess out = MSumAlive mutant logS
+                     | isFailure out = MSumKilled mutant logS
+                     | otherwise     = MSumOther mutant logS
+        logS :: [Summary]
+        logS = zipWith (testSummaryFn mutant) tests ioresults
+
+-- | Run all tests on a mutant
+evalMutant :: (Typeable t, Summarizable t) => [TestStr] -> Mutant -> IO [InterpreterOutput t]
+evalMutant tests mutant = do
   -- Hint does not provide us a way to evaluate the module without
   -- writing it to disk first, so we go for this hack.
   -- We write the temporary file to disk, run interpreter on it, get
-  -- the result and remove the file
-  writeFile fPath m
-  let logF = (fPath ++ ".log")
-  liftM (, logF) $ catchOutput logF $ I.runInterpreter (evalMethod fPath eStr)
+  -- the result (we dont remove the file now, but can be added)
+  createDirectoryIfMissing True ".mutants"
+  let mutantFile = ".mutants/" ++ hash mutant ++ ".hs"
+  writeFile mutantFile mutant
+  let logF = mutantFile ++ ".log"
+  stopFast (evalTest mutantFile logF) tests
+
+-- | Stop mutant runs at the first sign of problems.
+stopFast :: (Typeable t, Summarizable t) => (String -> IO (InterpreterOutput t)) -> [TestStr] -> IO [InterpreterOutput t]
+stopFast _ [] = return []
+stopFast fn (x:xs) = do
+  v <- fn x
+  case _io v of
+    Left _ -> return [v] -- load error
+    Right out -> if isSuccess out
+      then liftM (v :) $ stopFast fn xs
+      else return [v] -- test failed (mutant detected)
+
+-- | Run one single test on a mutant
+evalTest :: (Typeable a, Summarizable a) => String -> String -> String -> IO (InterpreterOutput a)
+evalTest mutantFile logF test = do
+  val <- withArgs [] $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
+  return Io {_io = val, _ioLog = logF}
 
 -- | Given the filename, modulename, test to evaluate, evaluate, and return result as a pair.
 --
 -- > t = I.runInterpreter (evalMethod
 -- >        "Examples/QuickCheckTest.hs"
 -- >        "quickCheckResult idEmp")
-evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> m (String, t)
+evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> m t
 evalMethod fileName evalStr = do
   I.loadModules [fileName]
   ms <- I.getLoadedModules
   I.setTopLevelModules ms
-  result <- I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
-  return (fileName, result)
+  I.interpret evalStr (I.as :: (Typeable a => IO a)) >>= liftIO
 
 
--- | Summarize the entire run
-multipleCheckSummary :: Show b => ((String, b) -> Bool) -> [[InterpreterOutput b]] -> TSSum
-multipleCheckSummary isSuccessFunction results
-  -- we assume that checking each prop results in the same number of errorCases and executedCases
-  | not (checkLength results) = error "Output lengths differ for some properties."
-  | otherwise = TSSum {tssumNumMutants = countMutants,
-                       tssumAlive = countAlive,
-                       tssumErrors= countErrors,
-                       tssumLog = logMsg}
-  where executedCases = groupBy ((==) `on` fst) . sortBy (compare `on` fst) . rights $ map fst $ concat results
-        allSuccesses = [rs | rs <- executedCases, length rs == length results, all isSuccessFunction rs]
-        countAlive = length allSuccesses
-        countErrors = countMutants - length executedCases
-        logMsg = showA allSuccesses
-        checkLength res = and $ map ((==countMutants) . length) res ++ map ((==countExecutedCases) . length) executedCases
-        countExecutedCases = length . head $ executedCases
-        countMutants = length . head $ results
+-- | Summarize the entire run. Passed results are per mutant
+fullSummary :: (Show b, Summarizable b) => [TestStr] -> [[InterpreterOutput b]] -> MAnalysisSummary
+fullSummary _tests results = MAnalysisSummary {
+  maNumMutants = length results,
+  maAlive = length alive,
+  maKilled = length fails,
+  maErrors= length errors}
+  where res = map (map _io) results
+        lasts = map last res -- get the last test runs
+        (errors, completed) = partitionEithers lasts
+        fails = filter isFailure completed -- look if others failed or not
+        alive = filter isSuccess completed
 

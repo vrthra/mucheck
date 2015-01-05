@@ -165,8 +165,8 @@ selectLitOps m = selectValOps isLit convert m
         convert (Char c) = map Char [pred c, succ c]
         convert (PrimChar c) = map Char [pred c, succ c]
         convert (Frac f) = map Frac $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
-        convert (PrimFloat f) = map PrimFloat $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
-        convert (PrimDouble f) = map PrimDouble $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
+        convert (PrimFloat f) = map PrimFloat $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
+        convert (PrimDouble f) = map PrimDouble $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
         convert (String _) = map String $ nub [""]
         convert (PrimString _) = map PrimString $ nub [""]
         convert (PrimWord i) = map PrimWord $ nub [i + 1, i - 1, 0, 1]
@@ -183,16 +183,18 @@ selectBLitOps m = selectValOps isLit convert m
 
 -- | Negating boolean in if/else statements
 selectIfElseBoolNegOps :: Decl -> [MuOp]
-selectIfElseBoolNegOps m = selectValOps isIf (\(If e1 e2 e3) -> [If e1 e3 e2]) m
+selectIfElseBoolNegOps m = selectValOps isIf convert m
   where isIf If{} = True
         isIf _    = False
+        convert (If e1 e2 e3) = [If e1 e3 e2]
+        convert _ = []
 
 -- | Negating boolean in Guards
 selectGuardedBoolNegOps :: Decl -> [MuOp]
-selectGuardedBoolNegOps m = selectValOps isGuardedRhs negateGuardedRhs m
+selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
   where isGuardedRhs GuardedRhs{} = True
+        convert (GuardedRhs srcLoc stmts expr) = [GuardedRhs srcLoc s expr | s <- once (mkMp boolNegate) stmts]
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
         boolNegate (Qualifier expr) = [Qualifier (App (Var (UnQual (Ident "not"))) expr)]
         boolNegate x = [x]
-        negateGuardedRhs (GuardedRhs srcLoc stmts expr) = [GuardedRhs srcLoc s expr | s <- once (mkMp boolNegate) stmts]
 

@@ -15,11 +15,7 @@
 ** GHC Hint is not [thread safe](https://ghc.haskell.org/trac/ghc/ticket/3373)
    So just using Parallel mapM for mutation eval not work, although test suites
    themselves can be multi threaded in their executions.
-** Another option is to have a set of mutation evaluation servers running, and
-  send each mutation as a request to these servers, colelct the results back
-  and report. This will give us the abilty to restrict the number of processes
-  to a fixed number (rather than some emulation of forkMapM), and also let us
-  make use of different machines too.
+   Done by forking processes - see d-mucheck
 
 * Allow specifying which higher order mutants to include, or how to mutate
   depending on the context.
