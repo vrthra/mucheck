@@ -71,3 +71,5 @@ $ ghci
 > mucheck (testSummary::[Mutant] -> [InterpreterOutput HspecSummary] -> Summary) "qsort" "Examples/HspecTest.hs" ["spec"]
 ```
 
+# Distributed mutation analysis
+See [d-mucheck](https://bitbucket.org/osu-testing/d-mucheck) for distributed mutation analysis wrapper over mucheck
