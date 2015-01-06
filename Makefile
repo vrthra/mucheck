@@ -7,6 +7,7 @@ hlint:
 	(cd support; ~/.cabal/bin/hlint `find ../src -name \*.hs`)
 
 clean-sandbox:
+	- cabal sandbox hc-pkg unregister DMuCheck
 	- cabal sandbox hc-pkg unregister MuCheck-QuickCheck
 	- cabal sandbox hc-pkg unregister MuCheck-SmallCheck
 	- cabal sandbox hc-pkg unregister MuCheck-HUnit
