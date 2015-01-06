@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections, MultiWayIf, DeriveDataTypeable #-}
--- | The entry point for mucheck
+-- | The Interpreter module is responible for invoking the Hint interpreter to
+-- evaluate mutants.
 module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary(..)) where
 
 import qualified Language.Haskell.Interpreter as I
@@ -17,21 +18,31 @@ import Test.MuCheck.AnalysisSummary
 
 
 -- | Data type to hold results of a single test execution
-data MutantSummary = MSumError Mutant String [Summary]         -- errorStr
-                   | MSumAlive Mutant [Summary]
-                   | MSumKilled Mutant [Summary]
-                   | MSumOther Mutant [Summary]
+data MutantSummary = MSumError Mutant String [Summary]         -- ^ Capture the error if one occured
+                   | MSumAlive Mutant [Summary]                -- ^ The mutant was alive
+                   | MSumKilled Mutant [Summary]               -- ^ The mutant was kileld
+                   | MSumOther Mutant [Summary]                -- ^ Undetermined - we will treat it as killed as it is not a success.
                    deriving (Show, Typeable)
 
 -- | Given the list of tests suites to check, run the test suite on mutants.
-evaluateMutants :: (Summarizable a, Show a) => (Mutant -> TestStr -> InterpreterOutput a -> Summary) -> [Mutant] -> [String] -> IO (MAnalysisSummary, [MutantSummary])
+evaluateMutants :: (Summarizable a, Show a) =>
+    (Mutant -> TestStr -> InterpreterOutput a -> Summary)           -- ^ The summary function
+ -> [Mutant]                                                        -- ^ The mutants to be evaluated
+ -> [TestStr]                                                       -- ^ The tests to be used by mutation analysis
+ -> IO (MAnalysisSummary, [MutantSummary])                          -- ^ Returns a tuple of full run summary and individual mutant summary
 evaluateMutants testSummaryFn mutants tests = do
   results <- mapM (evalMutant tests) mutants -- [InterpreterOutput t]
   let singleTestSummaries = map (summarizeResults testSummaryFn tests) $ zip mutants results
       ma  = fullSummary tests results
   return (ma, singleTestSummaries)
 
-summarizeResults :: Summarizable a => (Mutant -> TestStr -> InterpreterOutput a -> Summary) -> [String] -> (Mutant, [InterpreterOutput a]) -> MutantSummary
+-- | The `summarizeResults` function evaluates the results of a test run
+-- using the supplied `isSuccess` and `testSummaryFn` functions from the adapters
+summarizeResults :: Summarizable a =>
+     (Mutant -> TestStr -> InterpreterOutput a -> Summary)        -- ^ The summary function
+  -> [TestStr]                                                    -- ^ Tests we used to run analysis
+  -> (Mutant, [InterpreterOutput a])                              -- ^ The mutant and its corresponding output of test runs.
+  -> MutantSummary                                                -- ^ Returns a summary of the run for the mutant
 summarizeResults testSummaryFn tests (mutant, ioresults) = case last results of -- the last result should indicate status because we dont run if there is error.
   Left err -> MSumError mutant (show err) logS
   Right out -> myresult out
@@ -43,7 +54,10 @@ summarizeResults testSummaryFn tests (mutant, ioresults) = case last results of 
         logS = zipWith (testSummaryFn mutant) tests ioresults
 
 -- | Run all tests on a mutant
-evalMutant :: (Typeable t, Summarizable t) => [TestStr] -> Mutant -> IO [InterpreterOutput t]
+evalMutant :: (Typeable t, Summarizable t) =>
+    [TestStr]                                                     -- ^ The tests to be used
+  -> Mutant                                                       -- ^ Mutant being tested
+  -> IO [InterpreterOutput t]                                     -- ^ Returns the result of test runs
 evalMutant tests mutant = do
   -- Hint does not provide us a way to evaluate the module without
   -- writing it to disk first, so we go for this hack.
@@ -55,8 +69,12 @@ evalMutant tests mutant = do
   let logF = mutantFile ++ ".log"
   stopFast (evalTest mutantFile logF) tests
 
--- | Stop mutant runs at the first sign of problems.
-stopFast :: (Typeable t, Summarizable t) => (String -> IO (InterpreterOutput t)) -> [TestStr] -> IO [InterpreterOutput t]
+-- | Stop mutant runs at the first sign of problems (invalid mutants or test
+-- failure).
+stopFast :: (Typeable t, Summarizable t) =>
+     (String -> IO (InterpreterOutput t))  -- ^ The function that given a test, runs it, and returns the result
+  -> [TestStr]                             -- ^ The tests to be run
+  -> IO [InterpreterOutput t]              -- ^ Returns the output of all tests. If there is an error, then it will be at the last test.
 stopFast _ [] = return []
 stopFast fn (x:xs) = do
   v <- fn x
@@ -67,7 +85,11 @@ stopFast fn (x:xs) = do
       else return [v] -- test failed (mutant detected)
 
 -- | Run one single test on a mutant
-evalTest :: (Typeable a, Summarizable a) => String -> String -> String -> IO (InterpreterOutput a)
+evalTest :: (Typeable a, Summarizable a) =>
+    String                                 -- ^ The mutant _file_ that we have to evaluate (_not_ the content)
+ -> String                                 -- ^ The file where we will write the stdout and stderr during the run. 
+ -> TestStr                                -- ^ The test to be run
+ -> IO (InterpreterOutput a)               -- ^ Returns the output of given test run
 evalTest mutantFile logF test = do
   val <- withArgs [] $ catchOutput logF $ I.runInterpreter (evalMethod mutantFile test)
   return Io {_io = val, _ioLog = logF}
@@ -77,7 +99,10 @@ evalTest mutantFile logF test = do
 -- > t = I.runInterpreter (evalMethod
 -- >        "Examples/QuickCheckTest.hs"
 -- >        "quickCheckResult idEmp")
-evalMethod :: (I.MonadInterpreter m, Typeable t) => String -> String -> m t
+evalMethod :: (I.MonadInterpreter m, Typeable t) =>
+     String                               -- ^ The mutant _file_ to load
+  -> TestStr                              -- ^ The test to be run
+  -> m t                                  -- ^ Returns the monadic computation to be run by I.runInterpreter
 evalMethod fileName evalStr = do
   I.loadModules [fileName]
   ms <- I.getLoadedModules
@@ -86,12 +111,15 @@ evalMethod fileName evalStr = do
 
 
 -- | Summarize the entire run. Passed results are per mutant
-fullSummary :: (Show b, Summarizable b) => [TestStr] -> [[InterpreterOutput b]] -> MAnalysisSummary
+fullSummary :: (Show b, Summarizable b) =>
+     [TestStr]                              -- ^ The list of tests we used
+  -> [[InterpreterOutput b]]                -- ^ The test ouput (per mutant, (per test))
+  -> MAnalysisSummary                       -- ^ Returns the full summary of the run
 fullSummary _tests results = MAnalysisSummary {
-  maNumMutants = length results,
-  maAlive = length alive,
-  maKilled = length fails,
-  maErrors= length errors}
+  _maNumMutants = length results,
+  _maAlive = length alive,
+  _maKilled = length fails,
+  _maErrors= length errors}
   where res = map (map _io) results
         lasts = map last res -- get the last test runs
         (errors, completed) = partitionEithers lasts

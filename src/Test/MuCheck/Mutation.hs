@@ -1,5 +1,5 @@
 {-# LANGUAGE ImpredicativeTypes #-}
--- | Mutation happens here.
+-- | This module handles the mutation of different patterns.
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
@@ -20,13 +20,21 @@ import Test.MuCheck.TestAdapter
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
-genMutants :: String -> FilePath -> IO [Mutant]
+genMutants ::
+     String           -- ^ The mutating function under test
+  -> FilePath         -- ^ The module where the mutating function is declared
+  -> IO [Mutant]      -- ^ Returns the mutants produced.
 genMutants = genMutantsWith defaultConfig
 
 -- | The `genMutantsWith` function takes configuration function to mutate,
--- filename the function is defined in, and produces mutants in the same
--- directory as the filename, and returns the number of mutants produced.
-genMutantsWith :: Config -> String -> FilePath -> IO [Mutant]
+-- function to mutate, filename the function is defined in, and produces
+-- mutants in the same directory as the filename, and returns the number
+-- of mutants produced.
+genMutantsWith ::
+     Config                     -- ^ The configuration to be used
+  -> String                     -- ^ The mutating function
+  -> FilePath                   -- ^ The module file where mutating function was declared
+  -> IO [Mutant]                -- ^ Returns the mutants produced
 genMutantsWith args func filename  = do
       g <- genRandomSeed
       f <- readFile filename
@@ -34,13 +42,23 @@ genMutantsWith args func filename  = do
 
 -- | Wrapper around sampleF that returns correct sampling ratios according to
 -- configuration passed.
-sampler :: RandomGen g => Config -> g -> MuVars -> [t] -> [t]
+sampler :: RandomGen g =>
+     Config                   -- ^ Configuration
+  -> g                        -- ^ The random seed
+  -> MuVars                   -- ^ What kind of a mutation are we interested in?
+  -> [t]                      -- ^ The original list of mutation operators
+  -> [t]                      -- ^ Returns the sampled mutation operators
 sampler args g m = sampleF g (getSample m args)
 
 -- | The `genMutantsForSrc` takes the function name to mutate, source where it
 -- is defined, and a sampling function, and returns the mutated sources selected
 -- using sampling function.
-genMutantsForSrc :: Config -> String -> String -> (MuVars -> [MuOp] -> [MuOp]) -> [Mutant]
+genMutantsForSrc ::
+     Config                   -- ^ Configuration
+  -> String                   -- ^ The mutating function
+  -> String                   -- ^ The module where mutating function was declared
+  -> (MuVars -> [MuOp] -> [MuOp]) -- ^ The sampling function
+  -> [Mutant]                 -- ^ Returns the sampled mutants
 genMutantsForSrc args funcname src sampleFn = map prettyPrint programMutants
   where astMod = getASTFromStr src
         f = getFunc funcname astMod
@@ -172,6 +190,13 @@ selectLitOps m = selectValOps isLit convert m
         convert (PrimWord i) = map PrimWord $ nub [i + 1, i - 1, 0, 1]
 
 -- | Convert Boolean Literals
+--
+-- > (True, False)
+--
+-- becomes
+--
+-- > (False, True)
+
 selectBLitOps :: Decl -> [MuOp]
 selectBLitOps m = selectValOps isLit convert m
   where isLit (Ident "True") = True
@@ -182,6 +207,13 @@ selectBLitOps m = selectValOps isLit convert m
         convert _ = []
 
 -- | Negating boolean in if/else statements
+--
+-- > if True then 1 else 0
+--
+-- becomes
+--
+-- > if True then 0 else 1
+
 selectIfElseBoolNegOps :: Decl -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf convert m
   where isIf If{} = True
@@ -190,6 +222,16 @@ selectIfElseBoolNegOps m = selectValOps isIf convert m
         convert _ = []
 
 -- | Negating boolean in Guards
+-- | negate guarded booleans in guarded definitions
+--
+-- > myFn x | x == 1 = True
+-- > myFn   | otherwise = False
+--
+-- becomes
+--
+-- > myFn x | not (x == 1) = True
+-- > myFn   | otherwise = False
+
 selectGuardedBoolNegOps :: Decl -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
   where isGuardedRhs GuardedRhs{} = True
