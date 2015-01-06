@@ -37,19 +37,17 @@ data Config = Config {
 --
 -- becomes
 --
--- > if (not True) then 1 else 0
+-- > if True then 0 else 1
   , doNegateIfElse :: Rational
--- | negate guarded booleans in case statements, that is
+-- | negate guarded booleans in guarded definitions
 --
--- > case v of
--- >   True -> 1
--- >   otherwise -> 0
+-- > myFn x | x == 1 = True
+-- > myFn   | otherwise = False
 --
 -- becomes
 --
--- > case v of
--- >  (not True) -> 1
--- >  otherwise -> 0
+-- > myFn x | not (x == 1) = True
+-- > myFn   | otherwise = False
   , doNegateGuards :: Rational
 -- | Maximum number of mutants to generate.
   , maxNumMutants :: Int

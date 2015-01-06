@@ -23,8 +23,7 @@ data MuOp = N  (Name, Name)
           | G  (GuardedRhs, GuardedRhs)
   deriving Eq
 
--- boilerplate code
-
+-- | Apply the given function on the tuple inside MuOp
 apply :: (forall a. (Eq a, G.Typeable a, Show a) => (a,a) -> c) -> MuOp -> c
 apply f (N  m) = f m
 apply f (QN m) = f m
@@ -50,8 +49,6 @@ showM (s, t) = "\n" ++ show s ++ " ==> " ++ show t
 -- | MuOp instance for Show
 instance Show MuOp where
   show = apply showM
-
--- end boilerplate code
 
 -- | Mutation operation representing translation from one fn to another fn.
 class Mutable a where
