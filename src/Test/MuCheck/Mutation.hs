@@ -87,13 +87,14 @@ genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
         fstOrder = 1 -- first order
 
         annotations :: [String]
-        annotations = getAnn origAst
+        annotations = (getAnn origAst "Test") ++ (getAnn origAst "TestSupport")
         alldecls :: [Decl]
         alldecls = getDecl origAst
 
         (onlyAnn, noAnn) = partition interesting alldecls
         interesting x = (functionName x ++ pragmaName x) `elem` annotations
         putBack m = putDecl m $ (getDecl m) ++ onlyAnn
+
 
 -- | Get the embedded declarations from a module.
 getDecl :: Module -> [Decl]
@@ -133,14 +134,17 @@ getASTFromStr :: String -> Module
 getASTFromStr fname = fromParseResult $ parseModule fname
 
 -- | get all annotated functions
-getAnn :: Module -> [String]
-getAnn m =  [conv name | Ann name _exp <- listify isAnn m]
-  where isAnn (Ann (Symbol _name) (Lit (String e))) = e == "Test"
-        isAnn (Ann (Ident _name) (Lit (String e))) = e == "Test"
+getAnn :: Module -> String -> [String]
+getAnn m s =  [conv name | Ann name _exp <- listify isAnn m]
+  where isAnn (Ann (Symbol _name) (Lit (String e))) = e == s
+        isAnn (Ann (Ident _name) (Lit (String e))) = e == s
         isAnn _ = False
         conv (Symbol n) = n
         conv (Ident n) = n
 
+-- | Given module source, return all marked tests
+allTests :: String -> [String]
+allTests modsrc = getAnn (getASTFromStr modsrc) "Test"
 
 -- | The name of a function
 functionName :: Decl -> String
