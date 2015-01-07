@@ -36,6 +36,12 @@
   the test cases are executed in the context of which module. We also need to
   provide some exclusion of testing support functions (and tests themselves)
 
+  For now, we use the idea of using Test annotations and TestSupport
+  annotations, and getting the relevant adapters to find a way of invoking
+  the annotated Tests. Thus so long as we stick with the concept of all tests
+  for a module are defined within that module, we can accomplish the original
+  goal of simple invocation.
+
 * See if we can remove the requirement for specifying the function to be
   mutated.
 
