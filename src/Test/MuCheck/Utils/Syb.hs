@@ -14,7 +14,7 @@ once f x = f x `mplus` gmapMo (once f) x
 
 -- | The function `relevantOps` does two filters. For the first, it
 -- removes spurious transformations like "Int 1 ~~> Int 1". Secondly, it
--- tries to apply the transformation to the given program on some element 
+-- tries to apply the transformation to the given program on some element
 -- if it does not succeed, then we discard that transformation.
 relevantOps :: (Data a, Eq a) => a -> [MuOp] -> [MuOp]
 relevantOps m oplst = filter (relevantOp m) $ filter (not . same) oplst

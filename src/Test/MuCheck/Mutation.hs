@@ -61,28 +61,17 @@ genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
   where origAst = getASTFromStr src
         ast = putDecl (getASTFromStr src) noAnn
 
-        ops, valOps, swapOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
-        ops = relevantOps ast (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
-        swapOps = sampleFn MutatePatternMatch $ selectFnMatches ast
-        valOps = sampleFn MutateValues $ selectLitOps ast ++ selectBLitOps ast
-        ifElseNegOps = sampleFn MutateNegateIfElse $ selectIfElseBoolNegOps ast
-        guardedBoolNegOps = sampleFn MutateNegateGuards $ selectGuardedBoolNegOps ast
+        ops :: [MuOp]
+        ops = relevantOps ast (muOps args ++ opsList)
 
-        ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Module_]
-        allMutants = nub $ patternMatchMutants ++
-                           operatorMutants ++
-                           ifElseNegMutants ++
-                           guardedNegMutants
-
-        patternMatchMutants = mutatesN swapOps ast fstOrder
-        ifElseNegMutants = mutatesN ifElseNegOps ast fstOrder
-        guardedNegMutants = mutatesN guardedBoolNegOps ast fstOrder
-        operatorMutants = case genMode args of
-            FirstOrderOnly -> mutatesN ops ast fstOrder
-            _              -> mutates ops ast
+        opsList = concatMap (uncurry sampleFn) [
+                 (MutatePatternMatch, selectFnMatches ast),
+                 (MutateValues, selectLiteralOps ast),
+                 (MutateNegateIfElse, selectIfElseBoolNegOps ast),
+                 (MutateNegateGuards, selectGuardedBoolNegOps ast)]
 
         programMutants :: [Module_]
-        programMutants =  allMutants
+        programMutants =  nub $ mutatesN ops ast fstOrder
 
         fstOrder = 1 -- first order
 
@@ -106,13 +95,8 @@ putDecl :: Module_ -> [Decl_] -> Module_
 putDecl (Module a b c d _) decls = (Module a b c d decls)
 putDecl m _ = m
 
--- | Higher order mutation of a function's code using a bunch of mutation
--- operators (In all the three mutate functions, we assume working
--- with functions declaration.)
-mutates :: [MuOp] -> Module_ -> [Module_]
-mutates ops m = filter (/= m) $ concat [mutatesN ops m x | x <- enumFrom 1]
-
--- | First and higher order mutation.
+-- | First and higher order mutation. The actual apply of mutation operators,
+-- and generation of mutants happens here.
 -- The third argument specifies whether it's first order or higher order
 mutatesN :: [MuOp] -> Module_ -> Int -> [Module_]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
@@ -177,6 +161,8 @@ selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Module_ 
 selectValOps predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
+selectLiteralOps :: Module_ -> [MuOp]
+selectLiteralOps m = selectLitOps m ++ selectBLitOps m
 -- | Look for literal values in AST, and return applicable MuOp transforms.
 -- Unfortunately booleans are not handled here.
 selectLitOps :: Module_ -> [MuOp]
