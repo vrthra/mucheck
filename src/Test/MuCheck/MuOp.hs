@@ -1,4 +1,4 @@
-{-#  LANGUAGE Rank2Types #-}
+{-#  LANGUAGE Rank2Types, TypeSynonymInstances, FlexibleInstances #-}
 -- | Mutation operators
 module Test.MuCheck.MuOp (MuOp
           , Mutable(..)
@@ -7,20 +7,41 @@ module Test.MuCheck.MuOp (MuOp
           , (~~>)
           , mkMpMuOp
           , same
+          , Module_
+          , Name_
+          , QName_
+          , QOp_
+          , Exp_
+          , Decl_
+          , Literal_
+          , GuardedRhs_
+          , Annotation_
           ) where
 
-import Language.Haskell.Exts (Name, QName, QOp, Exp, Literal, GuardedRhs, Decl)
 import qualified Data.Generics as G
 import Control.Monad (MonadPlus, mzero)
 
+import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..))
+
+type Module_ = Module SrcSpanInfo
+type Name_ = Name SrcSpanInfo
+type QName_ = QName SrcSpanInfo
+type QOp_ = QOp SrcSpanInfo
+type Exp_ = Exp SrcSpanInfo
+type Decl_ = Decl SrcSpanInfo
+type Literal_ = Literal SrcSpanInfo
+type GuardedRhs_ = GuardedRhs SrcSpanInfo
+type Annotation_ = Annotation SrcSpanInfo
+
+
 -- | MuOp constructor used to specify mutation transformation
-data MuOp = N  (Name, Name)
-          | QN (QName, QName)
-          | QO (QOp, QOp)
-          | E  (Exp, Exp)
-          | D  (Decl, Decl)
-          | L  (Literal, Literal)
-          | G  (GuardedRhs, GuardedRhs)
+data MuOp = N  (Name_, Name_)
+          | QN (QName_, QName_)
+          | QO (QOp_, QOp_)
+          | E  (Exp_, Exp_)
+          | D  (Decl_, Decl_)
+          | L  (Literal_, Literal_)
+          | G  (GuardedRhs_, GuardedRhs_)
   deriving Eq
 
 -- | Apply the given function on the tuple inside MuOp
@@ -71,30 +92,30 @@ xs *==>* ys = concatMap (==>* ys) xs
 x ~~> y = \z -> if z == x then return y else mzero
 
 -- | Name instance for Mutable
-instance Mutable Name where
+instance Mutable Name_ where
   (==>) = (N .) . (,)
 
 -- | QName instance for Mutable
-instance Mutable QName where
+instance Mutable QName_ where
   (==>) = (QN .) . (,)
 
 -- | QOp instance for Mutable
-instance Mutable QOp where
+instance Mutable QOp_ where
   (==>) = (QO .) . (,)
 
 -- | Exp instance for Mutable
-instance Mutable Exp where
+instance Mutable Exp_ where
   (==>) = (E .) . (,)
 
 -- | Exp instance for Mutable
-instance Mutable Decl where
+instance Mutable Decl_ where
   (==>) = (D .) . (,)
 
 -- | Literal instance for Mutable
-instance Mutable Literal where
+instance Mutable Literal_ where
   (==>) = (L .) . (,)
 
 -- | GuardedRhs instance for Mutable
-instance Mutable GuardedRhs where
+instance Mutable GuardedRhs_ where
   (==>) = (G .) . (,)
 

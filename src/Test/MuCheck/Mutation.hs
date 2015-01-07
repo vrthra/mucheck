@@ -1,14 +1,14 @@
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE ImpredicativeTypes, Rank2Types #-}
 -- | This module handles the mutation of different patterns.
 module Test.MuCheck.Mutation where
 
-import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
+import Language.Haskell.Exts.Annotated(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
         Exp(App, Var, If, Lit), QName(UnQual),
         Match(Match), Pat(PVar),
         Stmt(Qualifier), Module(Module),
         Name(Ident), Decl(FunBind, PatBind, AnnPragma),
         GuardedRhs(GuardedRhs), Annotation(Ann), Name(Symbol, Ident),
-        prettyPrint, fromParseResult, parseModule)
+        prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..))
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations, partition)
 import System.Random (RandomGen)
@@ -68,7 +68,7 @@ genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
         ifElseNegOps = sampleFn MutateNegateIfElse $ selectIfElseBoolNegOps ast
         guardedBoolNegOps = sampleFn MutateNegateGuards $ selectGuardedBoolNegOps ast
 
-        ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Module]
+        ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Module_]
         allMutants = nub $ patternMatchMutants ++
                            operatorMutants ++
                            ifElseNegMutants ++
@@ -81,14 +81,14 @@ genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
             FirstOrderOnly -> mutatesN ops ast fstOrder
             _              -> mutates ops ast
 
-        programMutants :: [Module]
+        programMutants :: [Module_]
         programMutants =  allMutants
 
         fstOrder = 1 -- first order
 
         annotations :: [String]
         annotations = (getAnn origAst "Test") ++ (getAnn origAst "TestSupport")
-        alldecls :: [Decl]
+        alldecls :: [Decl_]
         alldecls = getDecl origAst
 
         (onlyAnn, noAnn) = partition interesting alldecls
@@ -97,22 +97,24 @@ genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
 
 
 -- | Get the embedded declarations from a module.
-getDecl :: Module -> [Decl]
-getDecl (Module _ _ _ _ _ _ decls) = decls
+getDecl :: Module_ -> [Decl_]
+getDecl (Module _ _ _ _ decls) = decls
+getDecl _ = []
 
 -- | Put the given declarations into the given module
-putDecl :: Module -> [Decl] -> Module
-putDecl (Module a b c d e f _) decls = (Module a b c d e f decls)
+putDecl :: Module_ -> [Decl_] -> Module_
+putDecl (Module a b c d _) decls = (Module a b c d decls)
+putDecl m _ = m
 
 -- | Higher order mutation of a function's code using a bunch of mutation
 -- operators (In all the three mutate functions, we assume working
 -- with functions declaration.)
-mutates :: [MuOp] -> Module -> [Module]
+mutates :: [MuOp] -> Module_ -> [Module_]
 mutates ops m = filter (/= m) $ concat [mutatesN ops m x | x <- enumFrom 1]
 
 -- | First and higher order mutation.
 -- The third argument specifies whether it's first order or higher order
-mutatesN :: [MuOp] -> Module -> Int -> [Module]
+mutatesN :: [MuOp] -> Module_ -> Int -> [Module_]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 
@@ -120,7 +122,7 @@ mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 -- op once (op might be applied at different places).
 -- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
 -- "<" in the AST, then it will return two AST with each replaced.
-mutate :: MuOp -> Module -> [Module]
+mutate :: MuOp -> Module_ -> [Module_]
 mutate op m = once (mkMpMuOp op) m \\ [m]
 
 -- | Generate sub-arrays with one less element
@@ -130,32 +132,33 @@ removeOneElem l = choose l (length l - 1)
 -- AST/module-related operations
 
 -- | Returns the AST from the file
-getASTFromStr :: String -> Module
+getASTFromStr :: String -> Module_
 getASTFromStr fname = fromParseResult $ parseModule fname
 
 -- | get all annotated functions
-getAnn :: Module -> String -> [String]
-getAnn m s =  [conv name | Ann name _exp <- listify isAnn m]
-  where isAnn (Ann (Symbol _name) (Lit (String e))) = e == s
-        isAnn (Ann (Ident _name) (Lit (String e))) = e == s
+getAnn :: Module_ -> String -> [String]
+getAnn m s =  [conv name | Ann _l name _exp <- listify isAnn m]
+  where isAnn :: Annotation_ -> Bool
+        isAnn (Ann _l (Symbol _lsy _name) (Lit _ll (String _ls e _))) = e == s
+        isAnn (Ann _l (Ident _lid _name) (Lit _ll (String _ls e _))) = e == s
         isAnn _ = False
-        conv (Symbol n) = n
-        conv (Ident n) = n
+        conv (Symbol _l n) = n
+        conv (Ident _l n) = n
 
 -- | Given module source, return all marked tests
 allTests :: String -> [String]
 allTests modsrc = getAnn (getASTFromStr modsrc) "Test"
 
 -- | The name of a function
-functionName :: Decl -> String
-functionName (FunBind (Match _ (Ident n) _ _ _ _ : _)) = n
-functionName (FunBind (Match _ (Symbol n) _ _ _ _ : _)) = n
+functionName :: Decl_ -> String
+functionName (FunBind _l (Match _ (Ident _li n) _ _ _ : _)) = n
+functionName (FunBind _l (Match _ (Symbol _ls n) _ _ _ : _)) = n
 -- we also consider where clauses
-functionName (PatBind _ (PVar (Ident n)) _ _)          = n
+functionName (PatBind _ (PVar _lpv (Ident _li n)) _ _)          = n
 functionName _                                   = []
 
-pragmaName :: Decl -> String
-pragmaName (AnnPragma _ (Ann (Ident n) (Lit (String _t)))) = n
+pragmaName :: Decl_ -> String
+pragmaName (AnnPragma _ (Ann _l (Ident _li n) (Lit _ll (String _ls _t _)))) = n
 pragmaName _ = []
 
 -- but not let, because it has a different type, and for our purposes
@@ -170,34 +173,37 @@ pragmaName _ = []
 -- When we find any, we apply the given list of mappings to them, and produce
 -- a MuOp mapping between the original value and transformed value. This list
 -- of MuOp mappings are then returned.
-selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Module -> [MuOp]
+selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Module_ -> [MuOp]
 selectValOps predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
 -- | Look for literal values in AST, and return applicable MuOp transforms.
 -- Unfortunately booleans are not handled here.
-selectLitOps :: Module -> [MuOp]
+selectLitOps :: Module_ -> [MuOp]
 selectLitOps m = selectValOps isLit convert m
-  where isLit (Int _) = True
-        isLit (PrimInt _) = True
-        isLit (Char _) = True
-        isLit (PrimChar _) = True
-        isLit (Frac _) = True
-        isLit (PrimFloat _) = True
-        isLit (PrimDouble _) = True
-        isLit (String _) = True
-        isLit (PrimString _) = True
-        isLit (PrimWord _) = True
-        convert (Int i) = map Int $ nub [i + 1, i - 1, 0, 1]
-        convert (PrimInt i) = map PrimInt $ nub [i + 1, i - 1, 0, 1]
-        convert (Char c) = map Char [pred c, succ c]
-        convert (PrimChar c) = map Char [pred c, succ c]
-        convert (Frac f) = map Frac $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
-        convert (PrimFloat f) = map PrimFloat $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
-        convert (PrimDouble f) = map PrimDouble $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
-        convert (String _) = map String $ nub [""]
-        convert (PrimString _) = map PrimString $ nub [""]
-        convert (PrimWord i) = map PrimWord $ nub [i + 1, i - 1, 0, 1]
+  where isLit :: Literal_ -> Bool
+        isLit Int{} = True
+        isLit PrimInt{} = True
+        isLit Char{} = True
+        isLit PrimChar{} = True
+        isLit Frac{} = True
+        isLit PrimFloat{} = True
+        isLit PrimDouble{} = True
+        isLit String{} = True
+        isLit PrimString{} = True
+        isLit PrimWord{} = True
+        convert (Int l i _) = map (apX (Int l)) $ nub [i + 1, i - 1, 0, 1]
+        convert (PrimInt l i _) = map (apX (PrimInt l)) $ nub [i + 1, i - 1, 0, 1]
+        convert (Char l c _) = map (apX (Char l)) [pred c, succ c]
+        convert (PrimChar l c _) = map (apX (Char l)) [pred c, succ c]
+        convert (Frac l f _) = map (apX (Frac l)) $ nub [f + 1.0, f - 1.0, 0.0, 1.1]
+        convert (PrimFloat l f _) = map (apX (PrimFloat l)) $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
+        convert (PrimDouble l f _) = map (apX (PrimDouble l)) $ nub [f + 1.0, f - 1.0, 0.0, 1.0]
+        convert (String l _ _) = map (apX (String l)) $ nub [""]
+        convert (PrimString l _ _) = map (apX (PrimString l)) $ nub [""]
+        convert (PrimWord l i _) = map (apX (PrimWord l)) $ nub [i + 1, i - 1, 0, 1]
+        apX :: (t1 -> [a] -> t) -> t1 -> t
+        apX fn i = fn i []
 
 -- | Convert Boolean Literals
 --
@@ -207,13 +213,14 @@ selectLitOps m = selectValOps isLit convert m
 --
 -- > (False, True)
 
-selectBLitOps :: Module -> [MuOp]
+selectBLitOps :: Module_ -> [MuOp]
 selectBLitOps m = selectValOps isLit convert m
-  where isLit (Ident "True") = True
-        isLit (Ident "False") = True
+  where isLit :: Name_ -> Bool
+        isLit (Ident _l "True") = True
+        isLit (Ident _l "False") = True
         isLit _ = False
-        convert (Ident "True") = [Ident "False"]
-        convert (Ident "False") = [Ident "True"]
+        convert (Ident l "True") = [Ident l "False"]
+        convert (Ident l "False") = [Ident l "True"]
         convert _ = []
 
 -- | Negating boolean in if/else statements
@@ -224,11 +231,12 @@ selectBLitOps m = selectValOps isLit convert m
 --
 -- > if True then 0 else 1
 
-selectIfElseBoolNegOps :: Module -> [MuOp]
+selectIfElseBoolNegOps :: Module_ -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf convert m
-  where isIf If{} = True
+  where isIf :: Exp_ -> Bool
+        isIf If{} = True
         isIf _    = False
-        convert (If e1 e2 e3) = [If e1 e3 e2]
+        convert (If l e1 e2 e3) = [If l e1 e3 e2]
         convert _ = []
 
 -- | Negating boolean in Guards
@@ -242,12 +250,16 @@ selectIfElseBoolNegOps m = selectValOps isIf convert m
 -- > myFn x | not (x == 1) = True
 -- > myFn   | otherwise = False
 
-selectGuardedBoolNegOps :: Module -> [MuOp]
+l_ :: SrcSpanInfo
+l_ = SrcSpanInfo (SrcSpan "" 0 0 0 0) []
+
+selectGuardedBoolNegOps :: Module_ -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
-  where isGuardedRhs GuardedRhs{} = True
-        convert (GuardedRhs srcLoc stmts expr) = [GuardedRhs srcLoc s expr | s <- once (mkMp boolNegate) stmts]
-        boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
-        boolNegate (Qualifier expr) = [Qualifier (App (Var (UnQual (Ident "not"))) expr)]
+  where isGuardedRhs :: GuardedRhs_ -> Bool
+        isGuardedRhs GuardedRhs{} = True
+        convert (GuardedRhs l stmts expr) = [GuardedRhs l s expr | s <- once (mkMp boolNegate) stmts]
+        boolNegate e@(Qualifier _l (Var _lv (UnQual _lu (Ident _li "otherwise")))) = [e]
+        boolNegate (Qualifier l expr) = [Qualifier l (App l_ (Var l_ (UnQual l_ (Ident l_ "not"))) expr)]
         boolNegate x = [x]
 
 -- | Generate all operators for permuting and removal of pattern guards from
@@ -265,10 +277,11 @@ selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
 --
 -- > myFn (x:xs) = False
 
-selectFnMatches :: Module -> [MuOp]
+selectFnMatches :: Module_ -> [MuOp]
 selectFnMatches m = selectValOps isFunct convert m
-  where isFunct FunBind{} = True
+  where isFunct :: Decl_ -> Bool
+        isFunct FunBind{} = True
         isFunct _    = False
-        convert (FunBind ms) = map FunBind $ filter (== ms) (permutations ms ++ removeOneElem ms)
+        convert (FunBind l ms) = map (FunBind l) $ filter (== ms) (permutations ms ++ removeOneElem ms)
         convert _ = []
 
