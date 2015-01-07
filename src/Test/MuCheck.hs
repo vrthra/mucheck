@@ -15,15 +15,14 @@ import Test.MuCheck.AnalysisSummary
 --
 -- > tFn :: Mutant -> TestStr -> InterpreterOutput QuickCheckSummary`
 -- > tFn = testSummary
--- > mucheck tFn "qsort" "Examples/QuickCheckTest.hs" ["quickCheckResult revProp"]
+-- > mucheck tFn "Examples/QuickCheckTest.hs" ["quickCheckResult revProp"]
 
 mucheck :: (Summarizable a, Show a) =>
      (Mutant -> TestStr -> InterpreterOutput a -> Summary) -- ^ The summarization function to use on test results
-  -> String                                                -- ^ The mutating function we are checking the test adequacy of.
-  -> String                                                -- ^ The module file where the mutating function was declared
+  -> String                                                -- ^ The module we are mutating
   -> [TestStr]                                             -- ^ The tests we can use to kill mutants
   -> IO (MAnalysisSummary, [MutantSummary])                -- ^ Returns a tuple of full summary, and individual mutant results.
-mucheck resFn mutatingFn moduleFile tests = do
-  mutants <- genMutants mutatingFn moduleFile >>= rSample (maxNumMutants defaultConfig)
+mucheck resFn moduleFile tests = do
+  mutants <- genMutants moduleFile >>= rSample (maxNumMutants defaultConfig)
   evaluateMutants resFn mutants tests
 

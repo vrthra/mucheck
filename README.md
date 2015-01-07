@@ -24,7 +24,7 @@ $ $dist/mucheck-hspec -h
 Use the example given.
 ## QuickCheck
 ```
-$ ./mucheck-quickcheck qsort Examples/QuickCheckTest.hs 'quickCheckResult idEmpProp' 'quickCheckResult revProp' 'quickCheckResult modelProp'
+$ ./mucheck-quickcheck Examples/QuickCheckTest.hs 'quickCheckResult idEmpProp' 'quickCheckResult revProp' 'quickCheckResult modelProp'
 ```
 
 # Or use it from ghci as a library, after copying one of the examples like this.
@@ -36,7 +36,7 @@ $ ghci
 > :m + Test.MuCheck.TestAdapter
 > :m + Test.MuCheck.TestAdapter.QuickCheck
 > :m + Test.QuickCheck.Test
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput QuickCheckSummary] -> Summary) "qsort" "Examples/QuickCheckTest.hs" ["quickCheckResult idEmpProp","quickCheckResult revProp","quickCheckResult modelProp"]
+> mucheck (testSummary::[Mutant] -> [InterpreterOutput QuickCheckSummary] -> Summary) "Examples/QuickCheckTest.hs" ["quickCheckResult idEmpProp","quickCheckResult revProp","quickCheckResult modelProp"]
 ```
 ## SmallCheck
 ```
@@ -46,7 +46,7 @@ $ ghci
 > :m + Test.MuCheck.TestAdapter
 > :m + Test.MuCheck.TestAdapter.SmallCheck
 > :m + Test.SmallCheck
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput SmallCheckSummary] -> Summary) "qsort" "Examples/SmallCheckTest.hs" ["smallCheckResult idEmpProp"]
+> mucheck (testSummary::[Mutant] -> [InterpreterOutput SmallCheckSummary] -> Summary) "Examples/SmallCheckTest.hs" ["smallCheckResult idEmpProp"]
 ```
 
 ## HUnit
@@ -57,7 +57,7 @@ $ ghci
 > :m + Test.MuCheck.TestAdapter
 > :m + Test.MuCheck.TestAdapter.HUnit
 > :m + Test.HUnit
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput HUnitSummary] -> Summary) "qsort" "Examples/HUnitTest.hs" ["runTestTT tests"]
+> mucheck (testSummary::[Mutant] -> [InterpreterOutput HUnitSummary] -> Summary) "Examples/HUnitTest.hs" ["runTestTT tests"]
 ```
 
 ## Hspec
@@ -68,7 +68,7 @@ $ ghci
 > :m + Test.MuCheck.TestAdapter
 > :m + Test.MuCheck.TestAdapter.Hspec
 > :m + Test.Hspec.Core.Runner
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput HspecSummary] -> Summary) "qsort" "Examples/HspecTest.hs" ["spec"]
+> mucheck (testSummary::[Mutant] -> [InterpreterOutput HspecSummary] -> Summary) "Examples/HspecTest.hs" ["spec"]
 ```
 
 # Distributed mutation analysis

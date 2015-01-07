@@ -3,13 +3,14 @@
 module Test.MuCheck.Mutation where
 
 import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
-        Exp(App, Var, If), QName(UnQual),
+        Exp(App, Var, If, Lit), QName(UnQual),
+        Match(Match), Pat(PVar),
         Stmt(Qualifier), Module(Module),
-        Name(Ident, Symbol), Decl(FunBind, PatBind),
-        Pat(PVar), Match(Match), GuardedRhs(GuardedRhs),
-        prettyPrint, fromParseResult, parseFileContents)
+        Name(Ident), Decl(FunBind, PatBind, AnnPragma),
+        GuardedRhs(GuardedRhs), Annotation(Ann), Name(Symbol, Ident),
+        prettyPrint, fromParseResult, parseModule)
 import Data.Generics (Typeable, mkMp, listify)
-import Data.List(nub, (\\), permutations)
+import Data.List(nub, (\\), permutations, partition)
 import System.Random (RandomGen)
 
 import Test.MuCheck.MuOp
@@ -21,8 +22,7 @@ import Test.MuCheck.TestAdapter
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
 genMutants ::
-     String           -- ^ The mutating function under test
-  -> FilePath         -- ^ The module where the mutating function is declared
+     FilePath         -- ^ The module we are mutating
   -> IO [Mutant]      -- ^ Returns the mutants produced.
 genMutants = genMutantsWith defaultConfig
 
@@ -32,13 +32,12 @@ genMutants = genMutantsWith defaultConfig
 -- of mutants produced.
 genMutantsWith ::
      Config                     -- ^ The configuration to be used
-  -> String                     -- ^ The mutating function
-  -> FilePath                   -- ^ The module file where mutating function was declared
+  -> FilePath                   -- ^ The module we are mutating
   -> IO [Mutant]                -- ^ Returns the mutants produced
-genMutantsWith args func filename  = do
+genMutantsWith args filename  = do
       g <- genRandomSeed
       f <- readFile filename
-      return $ genMutantsForSrc defaultConfig func f (sampler args g)
+      return $ genMutantsForSrc defaultConfig f (sampler args g)
 
 -- | Wrapper around sampleF that returns correct sampling ratios according to
 -- configuration passed.
@@ -55,56 +54,64 @@ sampler args g m = sampleF g (getSample m args)
 -- using sampling function.
 genMutantsForSrc ::
      Config                   -- ^ Configuration
-  -> String                   -- ^ The mutating function
-  -> String                   -- ^ The module where mutating function was declared
+  -> String                   -- ^ The module we are mutating
   -> (MuVars -> [MuOp] -> [MuOp]) -- ^ The sampling function
   -> [Mutant]                 -- ^ Returns the sampled mutants
-genMutantsForSrc args funcname src sampleFn = map prettyPrint programMutants
-  where astMod = getASTFromStr src
-        f = getFunc funcname astMod
+genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
+  where origAst = getASTFromStr src
+        ast = putDecl (getASTFromStr src) noAnn
 
-        ops, swapOps, valOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
-        ops = relevantOps f (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
-        swapOps = sampleFn MutatePatternMatch $ permMatches f ++ removeOnePMatch f
-        valOps = sampleFn MutateValues $ selectLitOps f ++ selectBLitOps f
-        ifElseNegOps = sampleFn MutateNegateIfElse $ selectIfElseBoolNegOps f
-        guardedBoolNegOps = sampleFn MutateNegateGuards $ selectGuardedBoolNegOps f
+        ops, valOps, swapOps, ifElseNegOps, guardedBoolNegOps :: [MuOp]
+        ops = relevantOps ast (muOps args ++ valOps ++ ifElseNegOps ++ guardedBoolNegOps)
+        swapOps = sampleFn MutatePatternMatch $ selectFnMatches ast
+        valOps = sampleFn MutateValues $ selectLitOps ast ++ selectBLitOps ast
+        ifElseNegOps = sampleFn MutateNegateIfElse $ selectIfElseBoolNegOps ast
+        guardedBoolNegOps = sampleFn MutateNegateGuards $ selectGuardedBoolNegOps ast
 
-        patternMatchMutants, ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Decl]
+        ifElseNegMutants, guardedNegMutants, operatorMutants, allMutants :: [Module]
         allMutants = nub $ patternMatchMutants ++
                            operatorMutants ++
                            ifElseNegMutants ++
                            guardedNegMutants
 
-        patternMatchMutants = mutatesN swapOps f fstOrder
-        ifElseNegMutants = mutatesN ifElseNegOps f fstOrder
-        guardedNegMutants = mutatesN guardedBoolNegOps f fstOrder
+        patternMatchMutants = mutatesN swapOps ast fstOrder
+        ifElseNegMutants = mutatesN ifElseNegOps ast fstOrder
+        guardedNegMutants = mutatesN guardedBoolNegOps ast fstOrder
         operatorMutants = case genMode args of
-            FirstOrderOnly -> mutatesN ops f fstOrder
-            _              -> mutates ops f
+            FirstOrderOnly -> mutatesN ops ast fstOrder
+            _              -> mutates ops ast
 
         programMutants :: [Module]
-        programMutants =  map (putDecls astMod) [replaceDef f fn astMod | fn <- allMutants]
+        programMutants =  allMutants
 
         fstOrder = 1 -- first order
 
--- | Replace old function definition with a new one in the AST
-replaceDef :: Decl -> Decl -> Module -> [Decl]
-replaceDef oldf newf (Module _ _ _ _ _ _ decls) = replaceFst (oldf, newf) decls
+        annotations :: [String]
+        annotations = getAnn origAst
+        alldecls :: [Decl]
+        alldecls = getDecl origAst
 
--- | Fetch the function definition from module
-getFunc :: String -> Module -> Decl
-getFunc fname ast = head $ listify (isFunctionD fname) ast
+        (onlyAnn, noAnn) = partition interesting alldecls
+        interesting x = (functionName x ++ pragmaName x) `elem` annotations
+        putBack m = putDecl m $ (getDecl m) ++ onlyAnn
+
+-- | Get the embedded declarations from a module.
+getDecl :: Module -> [Decl]
+getDecl (Module _ _ _ _ _ _ decls) = decls
+
+-- | Put the given declarations into the given module
+putDecl :: Module -> [Decl] -> Module
+putDecl (Module a b c d e f _) decls = (Module a b c d e f decls)
 
 -- | Higher order mutation of a function's code using a bunch of mutation
 -- operators (In all the three mutate functions, we assume working
 -- with functions declaration.)
-mutates :: [MuOp] -> Decl -> [Decl]
+mutates :: [MuOp] -> Module -> [Module]
 mutates ops m = filter (/= m) $ concat [mutatesN ops m x | x <- enumFrom 1]
 
 -- | First and higher order mutation.
 -- The third argument specifies whether it's first order or higher order
-mutatesN :: [MuOp] -> Decl -> Int -> [Decl]
+mutatesN :: [MuOp] -> Module -> Int -> [Module]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 
@@ -112,32 +119,8 @@ mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 -- op once (op might be applied at different places).
 -- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
 -- "<" in the AST, then it will return two AST with each replaced.
-mutate :: MuOp -> Decl -> [Decl]
+mutate :: MuOp -> Module -> [Module]
 mutate op m = once (mkMpMuOp op) m \\ [m]
-
--- | is the parsed expression the function we are looking for?
-isFunctionD :: String -> Decl -> Bool
-isFunctionD n (FunBind (Match _ (Ident n') _ _ _ _ : _)) = n == n'
-isFunctionD n (FunBind (Match _ (Symbol n') _ _ _ _ : _)) = n == n'
--- we also consider where clauses
-isFunctionD n (PatBind _ (PVar (Ident n')) _ _)          = n == n'
-isFunctionD _ _                                  = False
--- but not let, because it has a different type, and for our purposes
--- this is sufficient.
--- (Let Binds Exp) :: Exp
-
--- | Generate all operators for permutating pattern matches in
--- a function. We don't deal with permutating guards and case for now.
-permMatches :: Decl -> [MuOp]
-permMatches d@(FunBind ms) = d ==>* map FunBind (permutations ms \\ [ms])
-permMatches _  = []
-
--- | Generates transformations that removes one pattern match from a function
--- definition.
-removeOnePMatch :: Decl -> [MuOp]
-removeOnePMatch (FunBind [_]) = []
-removeOnePMatch d@(FunBind ms) = d ==>* map FunBind (removeOneElem ms \\ [ms])
-removeOnePMatch _  = []
 
 -- | Generate sub-arrays with one less element
 removeOneElem :: Eq t => [t] -> [[t]]
@@ -147,26 +130,49 @@ removeOneElem l = choose l (length l - 1)
 
 -- | Returns the AST from the file
 getASTFromStr :: String -> Module
-getASTFromStr fname = fromParseResult $ parseFileContents fname
+getASTFromStr fname = fromParseResult $ parseModule fname
 
--- | Set the declaration in a module
-putDecls :: Module -> [Decl] -> Module
-putDecls (Module a b c d e f _) decls = Module a b c d e f decls
+-- | get all annotated functions
+getAnn :: Module -> [String]
+getAnn m =  [conv name | Ann name _exp <- listify isAnn m]
+  where isAnn (Ann (Symbol _name) (Lit (String e))) = e == "Test"
+        isAnn (Ann (Ident _name) (Lit (String e))) = e == "Test"
+        isAnn _ = False
+        conv (Symbol n) = n
+        conv (Ident n) = n
 
--- | For valops, unlike functions, we specify how any given literal value might
+
+-- | The name of a function
+functionName :: Decl -> String
+functionName (FunBind (Match _ (Ident n) _ _ _ _ : _)) = n
+functionName (FunBind (Match _ (Symbol n) _ _ _ _ : _)) = n
+-- we also consider where clauses
+functionName (PatBind _ (PVar (Ident n)) _ _)          = n
+functionName _                                   = []
+
+pragmaName :: Decl -> String
+pragmaName (AnnPragma _ (Ann (Ident n) (Lit (String _t)))) = n
+pragmaName _ = []
+
+-- but not let, because it has a different type, and for our purposes
+-- this is sufficient.
+-- (Let Binds Exp) :: Exp
+
+
+-- | For valops, we specify how any given literal value might
 -- change. So we take a predicate specifying how to recognize the literal
 -- value, a list of mappings specifying how the literal can change, and the
 -- AST, and recurse over the AST looking for literals that match our predicate.
 -- When we find any, we apply the given list of mappings to them, and produce
 -- a MuOp mapping between the original value and transformed value. This list
 -- of MuOp mappings are then returned.
-selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Decl -> [MuOp]
+selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Module -> [MuOp]
 selectValOps predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
 -- | Look for literal values in AST, and return applicable MuOp transforms.
 -- Unfortunately booleans are not handled here.
-selectLitOps :: Decl -> [MuOp]
+selectLitOps :: Module -> [MuOp]
 selectLitOps m = selectValOps isLit convert m
   where isLit (Int _) = True
         isLit (PrimInt _) = True
@@ -197,7 +203,7 @@ selectLitOps m = selectValOps isLit convert m
 --
 -- > (False, True)
 
-selectBLitOps :: Decl -> [MuOp]
+selectBLitOps :: Module -> [MuOp]
 selectBLitOps m = selectValOps isLit convert m
   where isLit (Ident "True") = True
         isLit (Ident "False") = True
@@ -214,7 +220,7 @@ selectBLitOps m = selectValOps isLit convert m
 --
 -- > if True then 0 else 1
 
-selectIfElseBoolNegOps :: Decl -> [MuOp]
+selectIfElseBoolNegOps :: Module -> [MuOp]
 selectIfElseBoolNegOps m = selectValOps isIf convert m
   where isIf If{} = True
         isIf _    = False
@@ -232,11 +238,33 @@ selectIfElseBoolNegOps m = selectValOps isIf convert m
 -- > myFn x | not (x == 1) = True
 -- > myFn   | otherwise = False
 
-selectGuardedBoolNegOps :: Decl -> [MuOp]
+selectGuardedBoolNegOps :: Module -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
   where isGuardedRhs GuardedRhs{} = True
         convert (GuardedRhs srcLoc stmts expr) = [GuardedRhs srcLoc s expr | s <- once (mkMp boolNegate) stmts]
         boolNegate e@(Qualifier (Var (UnQual (Ident "otherwise")))) = [e]
         boolNegate (Qualifier expr) = [Qualifier (App (Var (UnQual (Ident "not"))) expr)]
         boolNegate x = [x]
+
+-- | Generate all operators for permuting and removal of pattern guards from
+-- function definitions
+--
+-- > myFn (x:xs) = False
+-- > myFn _ = True
+--
+-- becomes
+--
+-- > myFn _ = True
+-- > myFn (x:xs) = False
+--
+-- > myFn _ = True
+--
+-- > myFn (x:xs) = False
+
+selectFnMatches :: Module -> [MuOp]
+selectFnMatches m = selectValOps isFunct convert m
+  where isFunct FunBind{} = True
+        isFunct _    = False
+        convert (FunBind ms) = map FunBind $ filter (== ms) (permutations ms ++ removeOneElem ms)
+        convert _ = []
 
