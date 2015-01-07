@@ -89,3 +89,5 @@
   * Third when applying the MuOp to produce Mutant
 
 ### Currently we sample on MuOp. We should actually be sampling on Mutants.
+
+### We should verify the use of once on boolNegate
