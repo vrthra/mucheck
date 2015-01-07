@@ -83,3 +83,9 @@
 ### Implement statement deletion by using default constructors where it is
   possible.
 
+### Currently, _each_ operator traverses the source code three times
+  * First trying to generate MuOp s
+  * Second when trying to determine if the MuOp is relevant (isRelevantOp)
+  * Third when applying the MuOp to produce Mutant
+
+### Currently we sample on MuOp. We should actually be sampling on Mutants.
