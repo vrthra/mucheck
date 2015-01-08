@@ -12,6 +12,7 @@ import Language.Haskell.Exts.Annotated(Literal(Int, Char, Frac, String, PrimInt,
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations, partition)
 import System.Random (RandomGen)
+import Control.Monad (liftM)
 
 import Test.MuCheck.MuOp
 import Test.MuCheck.Utils.Syb
@@ -128,6 +129,10 @@ getAnn m s =  [conv name | Ann _l name _exp <- listify isAnn m]
         isAnn _ = False
         conv (Symbol _l n) = n
         conv (Ident _l n) = n
+
+-- | given the module name, return all marked tests
+getAllTests :: String -> IO [String]
+getAllTests modname = liftM allTests $ readFile modname
 
 -- | Given module source, return all marked tests
 allTests :: String -> [String]

@@ -25,25 +25,25 @@ data MutantSummary = MSumError Mutant String [Summary]         -- ^ Capture the 
                    deriving (Show, Typeable)
 
 -- | Given the list of tests suites to check, run the test suite on mutants.
-evaluateMutants :: (Summarizable a, Show a) =>
-    (Mutant -> TestStr -> InterpreterOutput a -> Summary)           -- ^ The summary function
- -> [Mutant]                                                        -- ^ The mutants to be evaluated
- -> [TestStr]                                                       -- ^ The tests to be used by mutation analysis
- -> IO (MAnalysisSummary, [MutantSummary])                          -- ^ Returns a tuple of full run summary and individual mutant summary
-evaluateMutants testSummaryFn mutants tests = do
+evaluateMutants :: (Show b, Summarizable b, TRun a b) =>
+     a                                                               -- ^ The module to be evaluated
+  -> [Mutant]                                                        -- ^ The mutants to be evaluated
+  -> [TestStr]                                                       -- ^ The tests to be used for analysis
+  -> IO (MAnalysisSummary, [MutantSummary])                          -- ^ Returns a tuple of full run summary and individual mutant summary
+evaluateMutants m mutants tests = do
   results <- mapM (evalMutant tests) mutants -- [InterpreterOutput t]
-  let singleTestSummaries = map (summarizeResults testSummaryFn tests) $ zip mutants results
-      ma  = fullSummary tests results
+  let singleTestSummaries = map (summarizeResults m tests) $ zip mutants results
+      ma  = fullSummary m tests results
   return (ma, singleTestSummaries)
 
 -- | The `summarizeResults` function evaluates the results of a test run
 -- using the supplied `isSuccess` and `testSummaryFn` functions from the adapters
-summarizeResults :: Summarizable a =>
-     (Mutant -> TestStr -> InterpreterOutput a -> Summary)        -- ^ The summary function
+summarizeResults :: (Summarizable s, TRun a s) =>
+     a                                                            -- ^ The module to be evaluated
   -> [TestStr]                                                    -- ^ Tests we used to run analysis
-  -> (Mutant, [InterpreterOutput a])                              -- ^ The mutant and its corresponding output of test runs.
+  -> (Mutant, [InterpreterOutput s])                              -- ^ The mutant and its corresponding output of test runs.
   -> MutantSummary                                                -- ^ Returns a summary of the run for the mutant
-summarizeResults testSummaryFn tests (mutant, ioresults) = case last results of -- the last result should indicate status because we dont run if there is error.
+summarizeResults m tests (mutant, ioresults) = case last results of -- the last result should indicate status because we dont run if there is error.
   Left err -> MSumError mutant (show err) logS
   Right out -> myresult out
   where results = map _io ioresults
@@ -51,7 +51,8 @@ summarizeResults testSummaryFn tests (mutant, ioresults) = case last results of 
                      | isFailure out = MSumKilled mutant logS
                      | otherwise     = MSumOther mutant logS
         logS :: [Summary]
-        logS = zipWith (testSummaryFn mutant) tests ioresults
+        logS = zipWith (summarize mutant) tests ioresults
+        summarize = summarize_ m
 
 -- | Run all tests on a mutant
 evalMutant :: (Typeable t, Summarizable t) =>
@@ -111,11 +112,12 @@ evalMethod fileName evalStr = do
 
 
 -- | Summarize the entire run. Passed results are per mutant
-fullSummary :: (Show b, Summarizable b) =>
-     [TestStr]                              -- ^ The list of tests we used
+fullSummary :: (Show b, Summarizable b, TRun a b) =>
+     a                                      -- ^ The module
+  -> [TestStr]                              -- ^ The list of tests we used
   -> [[InterpreterOutput b]]                -- ^ The test ouput (per mutant, (per test))
   -> MAnalysisSummary                       -- ^ Returns the full summary of the run
-fullSummary _tests results = MAnalysisSummary {
+fullSummary m _tests results = MAnalysisSummary {
   _maNumMutants = length results,
   _maAlive = length alive,
   _maKilled = length fails,
@@ -123,6 +125,6 @@ fullSummary _tests results = MAnalysisSummary {
   where res = map (map _io) results
         lasts = map last res -- get the last test runs
         (errors, completed) = partitionEithers lasts
-        fails = filter isFailure completed -- look if others failed or not
-        alive = filter isSuccess completed
+        fails = filter (failure_ m) completed -- look if others failed or not
+        alive = filter (success_ m) completed
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, MultiParamTypeClasses, FunctionalDependencies #-}
 -- | Module for adapting test framekworks
 module Test.MuCheck.TestAdapter where
 
@@ -30,4 +30,17 @@ class Typeable s => Summarizable s where
   -- | Was the test run neither (gaveup/timedout)
   isOther :: s -> Bool
   isOther x = not (isSuccess x) && not (isFailure x)
+
+class TRun a s | a -> s where
+  -- | Generate a runnable test string out of passed in module name and
+  -- annotated test function name.
+  genTest ::  a -> String -> TestStr
+  getName :: a -> String
+  toRun :: String -> a
+
+  -- | Functions to be used to summarize
+  summarize_ :: Summarizable s => a -> (Mutant -> TestStr -> InterpreterOutput s -> Summary)
+  success_ :: Summarizable s => a -> (s -> Bool)
+  failure_ :: Summarizable s => a -> (s -> Bool)
+  other_ :: Summarizable s => a -> (s -> Bool)
 
