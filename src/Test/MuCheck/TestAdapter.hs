@@ -39,8 +39,8 @@ class TRun a s | a -> s where
   toRun :: String -> a
 
   -- | Functions to be used to summarize
-  summarize_ :: Summarizable s => a -> (Mutant -> TestStr -> InterpreterOutput s -> Summary)
-  success_ :: Summarizable s => a -> (s -> Bool)
-  failure_ :: Summarizable s => a -> (s -> Bool)
-  other_ :: Summarizable s => a -> (s -> Bool)
+  summarize_ :: Summarizable s => a -> Mutant -> TestStr -> InterpreterOutput s -> Summary
+  success_ :: Summarizable s => a -> s -> Bool
+  failure_ :: Summarizable s => a -> s -> Bool
+  other_ :: Summarizable s => a -> s -> Bool
 
