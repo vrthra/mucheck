@@ -91,3 +91,5 @@
 ### Currently we sample on MuOp. We should actually be sampling on Mutants.
 
 ### We should verify the use of once on boolNegate
+
+### put the underlying modulefile into a monad so can avoid passing it around.
