@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 -- | Common functions used by MuCheck
 module Test.MuCheck.Utils.Common where
 
@@ -74,4 +75,10 @@ curryM fn (a,b) = fn a b
 hash :: String -> String
 hash s = (if h < 0 then "x" else "y") ++ show (abs h)
   where h = H.hash s
+
+spread :: (a, [b]) -> [(a, b)]
+spread (a,lst) = map (a,) lst
+
+apSnd :: (b -> c) -> (a,b) -> (a,c)
+apSnd f (a,b) = (a, f b)
 

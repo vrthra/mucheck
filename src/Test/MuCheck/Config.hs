@@ -71,12 +71,14 @@ data MuVars = MutatePatternMatch
             | MutateValues
             | MutateNegateIfElse
             | MutateNegateGuards
+            | MutateOther String
+  deriving (Eq, Show)
 
 -- | getSample returns the fraction in config corresponding to the enum passed
 -- in
 getSample :: MuVars -> Config -> Rational
-getSample MutatePatternMatch = doMutatePatternMatches
-getSample MutateValues       = doMutateValues
-getSample MutateNegateIfElse = doNegateIfElse
-getSample MutateNegateGuards = doNegateGuards
-
+getSample MutatePatternMatch c = doMutatePatternMatches c
+getSample MutateValues       c = doMutateValues c
+getSample MutateNegateIfElse c = doNegateIfElse c
+getSample MutateNegateGuards c = doNegateGuards c
+getSample MutateOther{} _c = 1

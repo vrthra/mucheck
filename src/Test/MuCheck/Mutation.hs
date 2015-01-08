@@ -1,4 +1,4 @@
-{-# LANGUAGE ImpredicativeTypes, Rank2Types #-}
+{-# LANGUAGE ImpredicativeTypes, Rank2Types, TupleSections #-}
 -- | This module handles the mutation of different patterns.
 module Test.MuCheck.Mutation where
 
@@ -38,17 +38,17 @@ genMutantsWith ::
 genMutantsWith args filename  = do
       g <- genRandomSeed
       f <- readFile filename
-      return $ genMutantsForSrc defaultConfig f (sampler args g)
+      let mutants = genMutantsForSrc defaultConfig f
+      return $ sampler args g mutants
 
 -- | Wrapper around sampleF that returns correct sampling ratios according to
 -- configuration passed.
 sampler :: RandomGen g =>
      Config                   -- ^ Configuration
   -> g                        -- ^ The random seed
-  -> MuVars                   -- ^ What kind of a mutation are we interested in?
-  -> [t]                      -- ^ The original list of mutation operators
+  -> [(MuVars, t)]            -- ^ The original list of mutation operators
   -> [t]                      -- ^ Returns the sampled mutation operators
-sampler args g m = sampleF g (getSample m args)
+sampler _args _g mv = map snd mv
 
 -- | The `genMutantsForSrc` takes the function name to mutate, source where it
 -- is defined, and a sampling function, and returns the mutated sources selected
@@ -56,35 +56,35 @@ sampler args g m = sampleF g (getSample m args)
 genMutantsForSrc ::
      Config                   -- ^ Configuration
   -> String                   -- ^ The module we are mutating
-  -> (MuVars -> [MuOp] -> [MuOp]) -- ^ The sampling function
-  -> [Mutant]                 -- ^ Returns the sampled mutants
-genMutantsForSrc args src sampleFn = map (prettyPrint . putBack) programMutants
+  -> [(MuVars, Mutant)]                 -- ^ Returns the sampled mutants
+genMutantsForSrc config src = map (apSnd $ prettyPrint . withAnn) $ programMutants config ast
   where origAst = getASTFromStr src
-        ast = putDecl (getASTFromStr src) noAnn
+        (onlyAnn, noAnn) = splitAnnotations origAst
+        ast = putDecl origAst noAnn
+        withAnn mast = putDecl mast $ (getDecl mast) ++ onlyAnn
 
-        ops :: [MuOp]
-        ops = relevantOps ast (muOps args ++ opsList)
+programMutants :: Config -> Module_ -> [(MuVars, Module_)]
+programMutants config ast =  nub $ mutatesN (applicableOps config ast) (MutateOther [], ast) fstOrder
+  where fstOrder = 1 -- first order
 
-        opsList = concatMap (uncurry sampleFn) [
-                 (MutatePatternMatch, selectFnMatches ast),
-                 (MutateValues, selectLiteralOps ast),
-                 (MutateNegateIfElse, selectIfElseBoolNegOps ast),
-                 (MutateNegateGuards, selectGuardedBoolNegOps ast)]
+applicableOps :: Config -> Module_ -> [(MuVars,MuOp)]
+applicableOps config ast = relevantOps ast opsList
+  where opsList = concatMap spread [
+            (MutatePatternMatch, selectFnMatches ast),
+            (MutateValues, selectLiteralOps ast),
+            (MutateNegateIfElse, selectIfElseBoolNegOps ast),
+            (MutateNegateGuards, selectGuardedBoolNegOps ast),
+            (MutateOther "User", muOps config)]
 
-        programMutants :: [Module_]
-        programMutants =  nub $ mutatesN ops ast fstOrder
+-- | Split declarations of the module to annotated and non annotated.
+splitAnnotations :: Module_ -> ([Decl_], [Decl_])
+splitAnnotations ast = partition fn $ getDecl ast
+  where fn x = (functionName x ++ pragmaName x) `elem` getAnnotatedTests ast
+        -- only one of pragmaName or functionName will be present at a time.
 
-        fstOrder = 1 -- first order
-
-        annotations :: [String]
-        annotations = (getAnn origAst "Test") ++ (getAnn origAst "TestSupport")
-        alldecls :: [Decl_]
-        alldecls = getDecl origAst
-
-        (onlyAnn, noAnn) = partition interesting alldecls
-        interesting x = (functionName x ++ pragmaName x) `elem` annotations
-        putBack m = putDecl m $ (getDecl m) ++ onlyAnn
-
+-- | Returns the annotated tests and their annotations
+getAnnotatedTests :: Module_ -> [String]
+getAnnotatedTests ast = concatMap (getAnn ast) ["Test","TestSupport"]
 
 -- | Get the embedded declarations from a module.
 getDecl :: Module_ -> [Decl_]
@@ -99,7 +99,7 @@ putDecl m _ = m
 -- | First and higher order mutation. The actual apply of mutation operators,
 -- and generation of mutants happens here.
 -- The third argument specifies whether it's first order or higher order
-mutatesN :: [MuOp] -> Module_ -> Int -> [Module_]
+mutatesN :: [(MuVars,MuOp)] -> (MuVars, Module_) -> Int -> [(MuVars, Module_)]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 
@@ -107,8 +107,8 @@ mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 -- op once (op might be applied at different places).
 -- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
 -- "<" in the AST, then it will return two AST with each replaced.
-mutate :: MuOp -> Module_ -> [Module_]
-mutate op m = once (mkMpMuOp op) m \\ [m]
+mutate :: (MuVars, MuOp) -> (MuVars, Module_) -> [(MuVars, Module_)]
+mutate (v, op) (_v, m) = map (v, ) $ once (mkMpMuOp op) m \\ [m]
 
 -- | Generate sub-arrays with one less element
 removeOneElem :: Eq t => [t] -> [[t]]
