@@ -34,3 +34,8 @@ clean:
 .PHONY: test
 test:
 	cabal test
+
+# :set -package QuickCheck
+# :m +Test.QuickCheck
+testrepl:
+	cabal repl --ghc-option='-package QuickCheck-2.6'
