@@ -31,6 +31,18 @@ data Config = Config {
   , doMutatePatternMatches :: Rational
 -- | Mutates integer values by +1 or -1 or by replacing it with 0 or 1
   , doMutateValues :: Rational
+-- | Mutates operators, that is
+--
+-- > i + 1
+--
+-- becomes
+--
+-- > i - 1
+--
+-- > i * 1
+--
+-- > i / 1
+  , doMutateOperators :: Rational
 -- | negate if conditions, that is
 --
 -- > if True then 1 else 0
@@ -61,6 +73,7 @@ defaultConfig :: Config
 defaultConfig = Config {muOps = allOps
   , doMutatePatternMatches = 1.0
   , doMutateValues = 1.0
+  , doMutateOperators = 1.0
   , doNegateIfElse = 1.0
   , doNegateGuards = 1.0
   , maxNumMutants = 300
@@ -69,6 +82,7 @@ defaultConfig = Config {muOps = allOps
 -- | Enumeration of different kinds of mutations
 data MuVars = MutatePatternMatch
             | MutateValues
+            | MutateOperators
             | MutateNegateIfElse
             | MutateNegateGuards
             | MutateOther String
@@ -79,6 +93,7 @@ data MuVars = MutatePatternMatch
 getSample :: MuVars -> Config -> Rational
 getSample MutatePatternMatch c = doMutatePatternMatches c
 getSample MutateValues       c = doMutateValues c
+getSample MutateOperators    c = doMutateOperators c
 getSample MutateNegateIfElse c = doNegateIfElse c
 getSample MutateNegateGuards c = doNegateGuards c
-getSample MutateOther{} _c = 1
+getSample MutateOther{} c = 1

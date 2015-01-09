@@ -19,7 +19,6 @@ import Test.MuCheck.Utils.Syb
 import Test.MuCheck.Utils.Common
 import Test.MuCheck.Config
 import Test.MuCheck.TestAdapter
-import Test.MuCheck.Utils.Helpers
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
@@ -73,6 +72,7 @@ applicableOps config ast = relevantOps ast opsList
   where opsList = concatMap spread [
             (MutatePatternMatch, selectFnMatches ast),
             (MutateValues, selectLiteralOps ast),
+            (MutateOperators, selectCommonOps ast),
             (MutateNegateIfElse, selectIfElseBoolNegOps ast),
             (MutateNegateGuards, selectGuardedBoolNegOps ast),
             (MutateOther "User", muOps config)]
@@ -250,9 +250,9 @@ selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
   where isGuardedRhs :: GuardedRhs_ -> Bool
         isGuardedRhs GuardedRhs{} = True
         convert (GuardedRhs l stmts expr) = [GuardedRhs l s expr | s <- once (mkMp boolNegate) stmts]
-        boolNegate e@(Qualifier _l (Var _lv (UnQual _lu (Ident _li "otherwise")))) = [e]
+        boolNegate _e@(Qualifier _l (Var _lv (UnQual _lu (Ident _li "otherwise")))) = [] -- VERIFY
         boolNegate (Qualifier l expr) = [Qualifier l (App l_ (Var l_ (UnQual l_ (Ident l_ "not"))) expr)]
-        boolNegate x = [x]
+        boolNegate _x = [] -- VERIFY
 
 -- | Generate all operators for permuting and removal of pattern guards from
 -- function definitions
@@ -276,4 +276,41 @@ selectFnMatches m = selectValOps isFunct convert m
         isFunct _    = False
         convert (FunBind l ms) = map (FunBind l) $ filter (/= ms) (permutations ms ++ removeOneElem ms)
         convert _ = []
+
+-- | comparison operators ["<", ">", "<=", ">=", "/=", "=="]
+comparators :: [String]
+comparators = ["<", ">", "<=", ">=", "/=", "=="]
+
+-- | binary arithmetic ["+", "-", "*", "/"]
+binAriths :: [String]
+binAriths = ["+", "-", "*", "/"]
+
+-- | Generate all operators for permuting binary operators
+selectBinaryOps :: Module_ -> [MuOp]
+selectBinaryOps m = selectValOps isBin convert m
+  where isBin :: Name_ -> Bool
+        isBin (Symbol _l n) | n `elem` (comparators ++ binAriths) = True
+        isBin _ = False
+        convert (Symbol l n) = map (Symbol l) $ filter (/= n) $ comparators ++ binAriths
+        convert _ = []
+
+-- | predicates ["pred", "id", "succ"]
+predNums :: [String]
+predNums = ["pred", "id", "succ"]
+
+-- | functions on lists ["sum", "product", "maximum", "minimum", "head", "last"]
+arithLists :: [String]
+arithLists = ["sum", "product", "maximum", "minimum", "head", "last"]
+
+-- | Generate all operators for permuting commonly used functions.
+selectCommonFnOps :: Module_ -> [MuOp]
+selectCommonFnOps m = selectValOps isCommonFn convert m
+  where isCommonFn :: Exp_ -> Bool
+        isCommonFn (Var _lv (UnQual _lu (Ident _l n))) | n `elem` (predNums ++ arithLists) = True
+        isCommonFn _ = False
+        convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map  (\v -> Var lv_ (UnQual lu_ (Ident li_ v))) $ filter (/= n) $ predNums ++ arithLists
+        convert _ = []
+
+selectCommonOps :: Module_ -> [MuOp]
+selectCommonOps f = selectCommonFnOps f ++ selectBinaryOps f
 
