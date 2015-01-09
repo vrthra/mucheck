@@ -8,6 +8,9 @@ qsort (x:xs) = qsort l ++ [x] ++ qsort r
     where l = filter (< x) xs
           r = filter (>= x) xs
 
+uncoveredDummy :: Int -> Int
+uncoveredDummy a = 0 + a
+
 {-# ANN sortEmpty "Test" #-}
 sortEmpty = assertCheck $ qsort [] == []
 
