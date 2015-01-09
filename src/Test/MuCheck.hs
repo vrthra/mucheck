@@ -24,5 +24,5 @@ mucheck moduleFile = do
   -- get tix here.
   mutants <- genMutants (getName moduleFile) >>= rSample (maxNumMutants defaultConfig)
   tests <- getAllTests (getName moduleFile)
-  evaluateMutants moduleFile mutants tests
+  evaluateMutants moduleFile mutants (map (genTest moduleFile) tests)
 
