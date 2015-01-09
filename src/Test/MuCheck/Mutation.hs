@@ -72,10 +72,9 @@ applicableOps config ast = relevantOps ast opsList
   where opsList = concatMap spread [
             (MutatePatternMatch, selectFnMatches ast),
             (MutateValues, selectLiteralOps ast),
-            (MutateOperators, selectCommonOps ast),
+            (MutateFunctions, selectFunctionOps (muOp config) ast),
             (MutateNegateIfElse, selectIfElseBoolNegOps ast),
-            (MutateNegateGuards, selectGuardedBoolNegOps ast),
-            (MutateOther "User", muOps config)]
+            (MutateNegateGuards, selectGuardedBoolNegOps ast)]
 
 -- | Split declarations of the module to annotated and non annotated.
 splitAnnotations :: Module_ -> ([Decl_], [Decl_])
@@ -277,40 +276,34 @@ selectFnMatches m = selectValOps isFunct convert m
         convert (FunBind l ms) = map (FunBind l) $ filter (/= ms) (permutations ms ++ removeOneElem ms)
         convert _ = []
 
--- | comparison operators ["<", ">", "<=", ">=", "/=", "=="]
-comparators :: [String]
-comparators = ["<", ">", "<=", ">=", "/=", "=="]
-
--- | binary arithmetic ["+", "-", "*", "/"]
-binAriths :: [String]
-binAriths = ["+", "-", "*", "/"]
-
--- | Generate all operators for permuting binary operators
-selectBinaryOps :: Module_ -> [MuOp]
-selectBinaryOps m = selectValOps isBin convert m
+-- | Generate all operators for permuting symbols like binary operators
+-- Since we are looking for symbols, we are reasonably sure that it is not
+-- locally bound to a variable.
+selectSymbolFnOps :: Module_ -> [String] -> [MuOp]
+selectSymbolFnOps m s = selectValOps isBin convert m
   where isBin :: Name_ -> Bool
-        isBin (Symbol _l n) | n `elem` (comparators ++ binAriths) = True
+        isBin (Symbol _l n) | n `elem` s = True
         isBin _ = False
-        convert (Symbol l n) = map (Symbol l) $ filter (/= n) $ comparators ++ binAriths
+        convert (Symbol l n) = map (Symbol l) $ filter (/= n) s
         convert _ = []
 
--- | predicates ["pred", "id", "succ"]
-predNums :: [String]
-predNums = ["pred", "id", "succ"]
-
--- | functions on lists ["sum", "product", "maximum", "minimum", "head", "last"]
-arithLists :: [String]
-arithLists = ["sum", "product", "maximum", "minimum", "head", "last"]
-
--- | Generate all operators for permuting commonly used functions.
-selectCommonFnOps :: Module_ -> [MuOp]
-selectCommonFnOps m = selectValOps isCommonFn convert m
+-- | Generate all operators for permuting commonly used functions (with
+-- identifiers).
+selectIdentFnOps :: Module_ -> [String] ->  [MuOp]
+selectIdentFnOps m s = selectValOps isCommonFn convert m
   where isCommonFn :: Exp_ -> Bool
-        isCommonFn (Var _lv (UnQual _lu (Ident _l n))) | n `elem` (predNums ++ arithLists) = True
+        isCommonFn (Var _lv (UnQual _lu (Ident _l n))) | n `elem` s = True
         isCommonFn _ = False
-        convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map  (\v -> Var lv_ (UnQual lu_ (Ident li_ v))) $ filter (/= n) $ predNums ++ arithLists
+        convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map  (\v -> Var lv_ (UnQual lu_ (Ident li_ v))) $ filter (/= n) s
         convert _ = []
 
-selectCommonOps :: Module_ -> [MuOp]
-selectCommonOps f = selectCommonFnOps f ++ selectBinaryOps f
+selectFunctionOps :: [FnOp] -> Module_ -> [MuOp]
+selectFunctionOps fo f = (concatMap (selectIdentFnOps f) idents) ++ (concatMap (selectSymbolFnOps f) syms)
+  where idents = map _fns $ filter (\a -> _type a == FnIdent) fo
+        syms = map _fns $ filter (\a -> _type a == FnSymbol) fo
 
+-- (Var l (UnQual l (Ident l "ab")))
+-- (App l (Var l (UnQual l (Ident l "head"))) (Var l (UnQual l (Ident l "b"))))
+-- (App l (App l (Var l (UnQual l (Ident l "head"))) (Var l (UnQual l (Ident l "a")))) (Var l (UnQual l (Ident l "b")))))
+-- (InfixApp l (Var l (UnQual l (Ident l "a"))) (QVarOp l (UnQual l (Symbol l ">"))) (Var l (UnQual l (Ident l "b"))))
+-- (InfixApp l (Var l (UnQual l (Ident l "a"))) (QVarOp l (UnQual l (Ident l "x"))) (Var l (UnQual l (Ident l "b"))))

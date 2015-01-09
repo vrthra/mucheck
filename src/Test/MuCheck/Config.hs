@@ -2,7 +2,6 @@
 module Test.MuCheck.Config where
 
 import Test.MuCheck.MuOp
-import Test.MuCheck.Operators (allOps)
 
 -- | The knob controlling if we want first order mutation.
 data GenerationMode
@@ -15,9 +14,32 @@ data GenerationMode
 -- no mutants are picked for that kind. Any fraction in between causes that
 -- many mutants to be picked randomly from the available pool
 
+data FnType = FnSymbol | FnIdent
+  deriving (Eq, Show)
+data FnOp = FnOp {_type :: FnType, _fns :: [String]}
+  deriving (Eq, Show)
+
+
+-- | predicates ["pred", "id", "succ"]
+predNums :: [String]
+predNums = ["pred", "id", "succ"]
+
+-- | functions on lists ["sum", "product", "maximum", "minimum", "head", "last"]
+arithLists :: [String]
+arithLists = ["sum", "product", "maximum", "minimum", "head", "last"]
+
+
+-- | comparison operators ["<", ">", "<=", ">=", "/=", "=="]
+comparators :: [String]
+comparators = ["<", ">", "<=", ">=", "/=", "=="]
+
+-- | binary arithmetic ["+", "-", "*", "/"]
+binAriths :: [String]
+binAriths = ["+", "-", "*", "/"]
+
 data Config = Config {
 -- | Mutation operators on operator or function replacement
-  muOps :: [MuOp]
+  muOp :: [FnOp]
 -- | Mutate pattern matches for functions?
 -- for example
 --
@@ -31,7 +53,7 @@ data Config = Config {
   , doMutatePatternMatches :: Rational
 -- | Mutates integer values by +1 or -1 or by replacing it with 0 or 1
   , doMutateValues :: Rational
--- | Mutates operators, that is
+-- | Mutates operators and functions, that is
 --
 -- > i + 1
 --
@@ -42,7 +64,7 @@ data Config = Config {
 -- > i * 1
 --
 -- > i / 1
-  , doMutateOperators :: Rational
+  , doMutateFunctions :: Rational
 -- | negate if conditions, that is
 --
 -- > if True then 1 else 0
@@ -70,10 +92,13 @@ data Config = Config {
 
 -- | The default configuration
 defaultConfig :: Config
-defaultConfig = Config {muOps = allOps
+defaultConfig = Config {
+    muOp = [
+      FnOp {_type=FnIdent, _fns= predNums},FnOp {_type=FnIdent, _fns= arithLists},
+      FnOp {_type=FnSymbol, _fns= comparators},FnOp {_type=FnSymbol, _fns=binAriths}]
   , doMutatePatternMatches = 1.0
   , doMutateValues = 1.0
-  , doMutateOperators = 1.0
+  , doMutateFunctions = 1.0
   , doNegateIfElse = 1.0
   , doNegateGuards = 1.0
   , maxNumMutants = 300
@@ -82,7 +107,7 @@ defaultConfig = Config {muOps = allOps
 -- | Enumeration of different kinds of mutations
 data MuVars = MutatePatternMatch
             | MutateValues
-            | MutateOperators
+            | MutateFunctions
             | MutateNegateIfElse
             | MutateNegateGuards
             | MutateOther String
@@ -93,7 +118,8 @@ data MuVars = MutatePatternMatch
 getSample :: MuVars -> Config -> Rational
 getSample MutatePatternMatch c = doMutatePatternMatches c
 getSample MutateValues       c = doMutateValues c
-getSample MutateOperators    c = doMutateOperators c
+getSample MutateFunctions    c = doMutateFunctions c
 getSample MutateNegateIfElse c = doNegateIfElse c
 getSample MutateNegateGuards c = doNegateGuards c
 getSample MutateOther{} c = 1
+
