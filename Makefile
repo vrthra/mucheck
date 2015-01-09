@@ -41,6 +41,6 @@ testrepl:
 	cabal repl --ghc-option='-package QuickCheck-2.6'
 
 hpcex:
-	- rm Examples/*.hi Examples/*.o
+	- rm Examples/*.hi Examples/*.o *.tix tests
 	ghc -fhpc Examples/Main.hs --make -o tests
 
