@@ -270,7 +270,7 @@ selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
 -- > myFn (x:xs) = False
 
 selectFnMatches :: Module_ -> [MuOp]
-selectFnMatches m = selectValOps isFunct selFnconvert m
+selectFnMatches m = selectValOps isFunct convert m
   where isFunct :: Decl_ -> Bool
         isFunct FunBind{} = True
         isFunct _    = False
