@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 -- | Configuration module
 module Test.MuCheck.Config where
 
@@ -120,4 +121,10 @@ getSample MutateFunctions    c = doMutateFunctions c
 getSample MutateNegateIfElse c = doNegateIfElse c
 getSample MutateNegateGuards c = doNegateGuards c
 getSample MutateOther{} _c = 1
+
+similar :: MuVars -> MuVars -> Bool
+similar (MutateOther a) (MutateOther b) = if | a == [] -> True
+                                             | b == [] -> True
+                                             | otherwise -> a == b
+similar x y = x == y
 

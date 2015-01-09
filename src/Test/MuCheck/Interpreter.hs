@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, MultiWayIf, DeriveDataTypeable #-}
+{-# LANGUAGE TupleSections, MultiWayIf, DeriveDataTypeable, RecordWildCards #-}
 -- | The Interpreter module is responible for invoking the Hint interpreter to
 -- evaluate mutants.
 module Test.MuCheck.Interpreter (evaluateMutants, evalMethod, evalMutant, evalTest, summarizeResults, MutantSummary(..)) where
@@ -59,14 +59,14 @@ evalMutant :: (Typeable t, Summarizable t) =>
     [TestStr]                                                     -- ^ The tests to be used
   -> Mutant                                                       -- ^ Mutant being tested
   -> IO [InterpreterOutput t]                                     -- ^ Returns the result of test runs
-evalMutant tests mutant = do
+evalMutant tests Mutant{..} = do
   -- Hint does not provide us a way to evaluate the module without
   -- writing it to disk first, so we go for this hack.
   -- We write the temporary file to disk, run interpreter on it, get
   -- the result (we dont remove the file now, but can be added)
   createDirectoryIfMissing True ".mutants"
-  let mutantFile = ".mutants/" ++ hash mutant ++ ".hs"
-  writeFile mutantFile mutant
+  let mutantFile = ".mutants/" ++ hash _mutant ++ ".hs"
+  writeFile mutantFile _mutant
   let logF = mutantFile ++ ".log"
   stopFast (evalTest mutantFile logF) tests
 
@@ -118,6 +118,8 @@ fullSummary :: (Show b, Summarizable b, TRun a b) =>
   -> [[InterpreterOutput b]]                -- ^ The test ouput (per mutant, (per test))
   -> MAnalysisSummary                       -- ^ Returns the full summary of the run
 fullSummary m _tests results = MAnalysisSummary {
+  _maOriginalNumMutants = -1,
+  _maCoveredNumMutants = -1,
   _maNumMutants = length results,
   _maAlive = length alive,
   _maKilled = length fails,

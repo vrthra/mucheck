@@ -32,25 +32,6 @@
   or even just `mucheck` (using cabal test) and mucheck should compute the
   mutation score of the entire project.
 
-  This is currently hard to do because we need some way of specifying which of
-  the test cases are executed in the context of which module. We also need to
-  provide some exclusion of testing support functions (and tests themselves)
-
-  For now, we use the idea of using Test annotations and TestSupport
-  annotations, and getting the relevant adapters to find a way of invoking
-  the annotated Tests. Thus so long as we stick with the concept of all tests
-  for a module are defined within that module, we can accomplish the original
-  goal of simple invocation.
-
-* See if we can remove the requirement for specifying the function to be
-  mutated.
-
-  Requires us to provide some exclusion mechanism for testing support functions
-  in the same module, and tests themselves if they are in the same module.
-  Hard to do unless we decide to iterate toplevel functions, filter out the
-  excluded functions, and then decide to mutate only those left.
-  Idea: Use annotations for test support functions.
-
 ### Parallelize mutation analysis without relying on d-mucheck (Longer Term)
 
 * GHC Hint is not [thread safe](https://ghc.haskell.org/trac/ghc/ticket/3373)
@@ -67,19 +48,6 @@
 ### Make genMutants lazy and randomized, and get runCodeOnMutants to report the
   current progress and mutation percentage online.
 
-### Use coverage information when available (-fhpc,.hpc/*.mix) or ask to provide
-  so as to remove mutants that dont come under covered portions.
-* The first choice is to start with just the covered source (by program slicing)
-  and produce mutants for that.
-
-* The second choice is to filter out mutants produced that dont lie in covered
-  region
-
-* We can not reject the muops during the select* phase because the mutation
-  operators do not have context of application. Hence a mutation operator
-  applicable in a covered portion may also be applicable in a non-covered
-  portion.
-
 ### Implement statement deletion by using default constructors where it is
   possible.
 
@@ -87,8 +55,6 @@
   * First trying to generate MuOp s
   * Second when trying to determine if the MuOp is relevant (isRelevantOp)
   * Third when applying the MuOp to produce Mutant
-
-### Currently we sample on MuOp. We should actually be sampling on Mutants.
 
 ### We should verify the use of once on boolNegate
 

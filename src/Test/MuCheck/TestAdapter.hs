@@ -4,12 +4,19 @@ module Test.MuCheck.TestAdapter where
 
 import qualified Language.Haskell.Interpreter as I
 import Data.Typeable
+import Test.MuCheck.Config
+import Test.MuCheck.Tix
 
 -- | Wrapper for interpreter output
 data Summarizable a => InterpreterOutput a = Io {_io :: Either I.InterpreterError a, _ioLog::String}
 
 -- | Holding mutant information
-type Mutant = String
+data Mutant = Mutant { _mutant::String, _mtype::MuVars, _mspan::Span}
+  deriving (Eq, Show)
+
+toMutant :: (MuVars, Span, String) -> Mutant
+toMutant (m,s,str) = Mutant {_mutant = str, _mtype = m, _mspan = s}
+
 
 -- | Holding test information
 type TestStr = String

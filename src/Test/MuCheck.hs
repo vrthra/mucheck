@@ -1,6 +1,8 @@
+{-# LANGUAGE RecordWildCards #-}
 -- | MuCheck base module
 module Test.MuCheck (mucheck) where
 
+import Control.Monad (liftM)
 import Test.MuCheck.Mutation
 import Test.MuCheck.Config
 import Test.MuCheck.Utils.Common
@@ -22,7 +24,32 @@ mucheck :: (Show b, Summarizable b, TRun a b) =>
   -> IO (MAnalysisSummary, [MutantSummary])                -- ^ Returns a tuple of full summary, and individual mutant results.
 mucheck moduleFile = do
   -- get tix here.
-  mutants <- genMutants (getName moduleFile) >>= rSample (maxNumMutants defaultConfig)
+  (len, mutants) <- genMutants (getName moduleFile)
+  -- Should we do random sample on covering alone or on the full?
+  smutants <- sampler defaultConfig mutants
   tests <- getAllTests (getName moduleFile)
-  evaluateMutants moduleFile mutants (map (genTest moduleFile) tests)
+  (fsum', msum) <- evaluateMutants moduleFile smutants (map (genTest moduleFile) tests)
+  -- set the original size of mutants. (We report the results based on original
+  -- number of mutants, not just the covered ones.)
+  let fsum = fsum' {_maNumMutants = len}
+  return (fsum, msum)
+
+-- | Wrapper around sampleF that returns correct sampling ratios according to
+-- configuration passed. TODO: Actually use the sampling configuration.
+sampler ::
+     Config              -- ^ Configuration
+  -> [Mutant]            -- ^ The original list of mutation operators
+  -> IO [Mutant]            -- ^ Returns the sampled mutation operators
+sampler config mv = do
+  ms <- liftM concat $ mapM (getSampled config mv) [MutatePatternMatch,
+                                                    MutateValues,
+                                                    MutateFunctions,
+                                                    MutateNegateIfElse,
+                                                    MutateNegateGuards,
+                                                    MutateOther []]
+  rSample (maxNumMutants config) ms
+
+getSampled :: Config -> [Mutant] -> MuVars -> IO [Mutant]
+getSampled config ms muvar = rSampleF (getSample muvar config) $ filter (mutantIs muvar) ms
+  where mutantIs mvar Mutant{..} = mvar `similar` _mtype
 

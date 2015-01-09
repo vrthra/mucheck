@@ -44,6 +44,12 @@ sampleF :: (RandomGen g) => g -> Rational -> [t] -> [t]
 sampleF g f xs = sample g l xs
     where l = round $ f * fromIntegral (length xs)
 
+-- | Wrapper around sampleF providing the random seed
+rSampleF :: Rational -> [t] -> IO [t]
+rSampleF n t = do g <- genRandomSeed
+                  return $ sampleF g n t
+
+
 -- | The `remElt` function removes element at index specified from a list
 remElt :: Int -> [a] -> [a]
 remElt idx xs = front ++ ack

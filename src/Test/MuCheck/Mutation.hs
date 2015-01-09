@@ -1,4 +1,4 @@
-{-# LANGUAGE ImpredicativeTypes, Rank2Types, TupleSections #-}
+{-# LANGUAGE ImpredicativeTypes, Rank2Types, TupleSections, RecordWildCards #-}
 -- | This module handles the mutation of different patterns.
 module Test.MuCheck.Mutation where
 
@@ -12,7 +12,6 @@ import Language.Haskell.Exts.Annotated(Literal(Int, Char, Frac, String, PrimInt,
         ModuleHead(..), ModuleName(..))
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations, partition)
-import System.Random (RandomGen)
 import Control.Monad (liftM)
 
 import Test.MuCheck.Tix
@@ -25,8 +24,8 @@ import Test.MuCheck.TestAdapter
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
 genMutants ::
-     FilePath         -- ^ The module we are mutating
-  -> IO [Mutant]      -- ^ Returns the mutants produced.
+     FilePath           -- ^ The module we are mutating
+  -> IO (Int,[Mutant]) -- ^ Returns the covering mutants produced, and original length.
 genMutants = genMutantsWith defaultConfig
 
 -- | The `genMutantsWith` function takes configuration function to mutate,
@@ -36,37 +35,35 @@ genMutants = genMutantsWith defaultConfig
 genMutantsWith ::
      Config                     -- ^ The configuration to be used
   -> FilePath                   -- ^ The module we are mutating
-  -> IO [Mutant]                -- ^ Returns the mutants produced
-genMutantsWith args filename  = do
-      g <- genRandomSeed
+  -> IO (Int, [Mutant])         -- ^ Returns the covered mutants produced, and the original number
+genMutantsWith _config filename  = do
       f <- readFile filename
+
       let modul = getModuleName (getASTFromStr f)
+          mutants :: [Mutant]
           mutants = genMutantsForSrc defaultConfig f
-      _c <- getCoveredModule "test.tix" modul
+      c <- getUnCoveredPatches "test.tix" modul
       -- check if the mutants span is within any of the covered spans.
-      return $ sampler args g mutants
+      let coveredMutants = if c /= [] then removeUncovered c mutants else mutants
+      return (length mutants, coveredMutants)
+
+removeUncovered :: [Span] -> [Mutant] -> [Mutant]
+removeUncovered uspans mutants = filter isMCovered mutants -- get only covering mutants.
+  where  isMCovered :: Mutant -> Bool
+         -- | is it contained in any of the spans? if it is, then return false.
+         isMCovered Mutant{..} = any (insideSpan _mspan) uspans
 
 getModuleName :: Module t -> String
 getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _ )) _ _ _) = name
 getModuleName _ = ""
 
--- | Wrapper around sampleF that returns correct sampling ratios according to
--- configuration passed.
-sampler :: RandomGen g =>
-     Config                   -- ^ Configuration
-  -> g                        -- ^ The random seed
-  -> [(MuVars, Span, t)]            -- ^ The original list of mutation operators
-  -> [t]                      -- ^ Returns the sampled mutation operators
-sampler _args _g mv = map (\(_a,_b,c) -> c ) mv
-
 -- | The `genMutantsForSrc` takes the function name to mutate, source where it
--- is defined, and a sampling function, and returns the mutated sources selected
--- using sampling function.
+-- is defined, and returns the mutated sources
 genMutantsForSrc ::
      Config                   -- ^ Configuration
   -> String                   -- ^ The module we are mutating
-  -> [(MuVars, Span, Mutant)]                 -- ^ Returns the sampled mutants
-genMutantsForSrc config src = map (apTh $ prettyPrint . withAnn) $ programMutants config ast
+  -> [Mutant] -- ^ Returns the mutants
+genMutantsForSrc config src = map (toMutant . (apTh $ prettyPrint . withAnn)) $ programMutants config ast
   where origAst = getASTFromStr src
         (onlyAnn, noAnn) = splitAnnotations origAst
         ast = putDecl origAst noAnn

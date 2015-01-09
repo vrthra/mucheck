@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0.0] (Rahul Gopinath)
+  * Fix function mutation by making it similar to other mutation operators.
+  * Allow users to specify their own groups of interchangeable functions
+  * Use test annotations to get tets
+  * Make testing module based.
+  * Use a better datatype so that we can infer the summarization function to use.
+  * Samples on mutants rather than mutation operators
+  * Extracts the location of mutation for later use.
+  * Add more test cases for mutations
+  * Read the HPC Tix files, and use them to filter out unused mutants.
+
 ## [0.3.0.0] (Rahul Gopinath)
   * Heavy refacoring, now summary is based on mutations rather than tests.
   * Mutation fails fast on either load errors or test failures
