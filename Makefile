@@ -43,3 +43,4 @@ testrepl:
 hpcex:
 	- rm Examples/*.hi Examples/*.o
 	ghc -fhpc Examples/Main.hs --make -o tests
+
