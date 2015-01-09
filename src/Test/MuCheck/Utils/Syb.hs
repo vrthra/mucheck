@@ -4,7 +4,7 @@ module Test.MuCheck.Utils.Syb (relevantOps, once) where
 
 import Data.Generics (Data, GenericM, gmapMo)
 import Test.MuCheck.MuOp (mkMpMuOp, MuOp, same)
-import Test.MuCheck.Config (MuVars)
+import Test.MuCheck.Config (MuVar)
 import Control.Monad (MonadPlus, mplus)
 import Data.Maybe(isJust)
 
@@ -17,7 +17,7 @@ once f x = f x `mplus` gmapMo (once f) x
 -- removes spurious transformations like "Int 1 ~~> Int 1". Secondly, it
 -- tries to apply the transformation to the given program on some element
 -- if it does not succeed, then we discard that transformation.
-relevantOps :: (Data a, Eq a) => a -> [(MuVars, MuOp)] -> [(MuVars, MuOp)]
+relevantOps :: (Data a, Eq a) => a -> [(MuVar, MuOp)] -> [(MuVar, MuOp)]
 relevantOps m oplst = filter (relevantOp m) $ filter (not . same . snd) oplst
   -- check if an operator can be applied to a program
   where relevantOp m' (_v, op) = isJust $ once (mkMpMuOp op) m'

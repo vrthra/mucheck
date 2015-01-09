@@ -49,7 +49,7 @@ sampler config mv = do
                                                     MutateOther []]
   rSample (maxNumMutants config) ms
 
-getSampled :: Config -> [Mutant] -> MuVars -> IO [Mutant]
+getSampled :: Config -> [Mutant] -> MuVar -> IO [Mutant]
 getSampled config ms muvar = rSampleF (getSample muvar config) $ filter (mutantIs muvar) ms
   where mutantIs mvar Mutant{..} = mvar `similar` _mtype
 

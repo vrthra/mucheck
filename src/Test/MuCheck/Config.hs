@@ -104,17 +104,17 @@ defaultConfig = Config {
   , genMode = FirstOrderOnly }
 
 -- | Enumeration of different kinds of mutations
-data MuVars = MutatePatternMatch
-            | MutateValues
-            | MutateFunctions
-            | MutateNegateIfElse
-            | MutateNegateGuards
-            | MutateOther String
+data MuVar = MutatePatternMatch
+           | MutateValues
+           | MutateFunctions
+           | MutateNegateIfElse
+           | MutateNegateGuards
+           | MutateOther String
   deriving (Eq, Show)
 
 -- | getSample returns the fraction in config corresponding to the enum passed
 -- in
-getSample :: MuVars -> Config -> Rational
+getSample :: MuVar -> Config -> Rational
 getSample MutatePatternMatch c = doMutatePatternMatches c
 getSample MutateValues       c = doMutateValues c
 getSample MutateFunctions    c = doMutateFunctions c
@@ -122,7 +122,7 @@ getSample MutateNegateIfElse c = doNegateIfElse c
 getSample MutateNegateGuards c = doNegateGuards c
 getSample MutateOther{} _c = 1
 
-similar :: MuVars -> MuVars -> Bool
+similar :: MuVar -> MuVar -> Bool
 similar (MutateOther a) (MutateOther b) = if | a == [] -> True
                                              | b == [] -> True
                                              | otherwise -> a == b

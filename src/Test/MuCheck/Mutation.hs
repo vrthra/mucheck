@@ -69,11 +69,11 @@ genMutantsForSrc config src = map (toMutant . (apTh $ prettyPrint . withAnn)) $ 
         ast = putDecl origAst noAnn
         withAnn mast = putDecl mast $ (getDecl mast) ++ onlyAnn
 
-programMutants :: Config -> Module_ -> [(MuVars, Span, Module_)]
+programMutants :: Config -> Module_ -> [(MuVar, Span, Module_)]
 programMutants config ast =  nub $ mutatesN (applicableOps config ast) (MutateOther [], toSpan (0,0,0,0), ast) fstOrder
   where fstOrder = 1 -- first order
 
-applicableOps :: Config -> Module_ -> [(MuVars,MuOp)]
+applicableOps :: Config -> Module_ -> [(MuVar,MuOp)]
 applicableOps config ast = relevantOps ast opsList
   where opsList = concatMap spread [
             (MutatePatternMatch, selectFnMatches ast),
@@ -105,7 +105,7 @@ putDecl m _ = m
 -- | First and higher order mutation. The actual apply of mutation operators,
 -- and generation of mutants happens here.
 -- The third argument specifies whether it's first order or higher order
-mutatesN :: [(MuVars,MuOp)] -> (MuVars, Span, Module_) -> Int -> [(MuVars, Span, Module_)]
+mutatesN :: [(MuVar,MuOp)] -> (MuVar, Span, Module_) -> Int -> [(MuVar, Span, Module_)]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 
@@ -113,7 +113,7 @@ mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 -- op once (op might be applied at different places).
 -- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
 -- "<" in the AST, then it will return two AST with each replaced.
-mutate :: (MuVars, MuOp) -> (MuVars, Span, Module_) -> [(MuVars, Span, Module_)]
+mutate :: (MuVar, MuOp) -> (MuVar, Span, Module_) -> [(MuVar, Span, Module_)]
 mutate (v, op) (_v, _s, m) = map (v,toSpan $ getSpan op, ) $ once (mkMpMuOp op) m \\ [m]
 
 -- | Generate sub-arrays with one less element

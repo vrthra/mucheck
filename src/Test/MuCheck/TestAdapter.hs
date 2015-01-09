@@ -11,10 +11,10 @@ import Test.MuCheck.Tix
 data Summarizable a => InterpreterOutput a = Io {_io :: Either I.InterpreterError a, _ioLog::String}
 
 -- | Holding mutant information
-data Mutant = Mutant { _mutant::String, _mtype::MuVars, _mspan::Span}
+data Mutant = Mutant { _mutant::String, _mtype::MuVar, _mspan::Span}
   deriving (Eq, Show)
 
-toMutant :: (MuVars, Span, String) -> Mutant
+toMutant :: (MuVar, Span, String) -> Mutant
 toMutant (m,s,str) = Mutant {_mutant = str, _mtype = m, _mspan = s}
 
 
