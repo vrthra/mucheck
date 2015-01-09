@@ -13,7 +13,8 @@ import System.IO.Temp (withSystemTempFile)
 
 -- | simple wrapper for adding a % at the end.
 (./.) :: (Show a, Integral a) => a -> a -> String
-n ./. t =  "(" ++ show (n * 100 `div` t) ++ "%)"
+n ./. t | t > 0 =  "(" ++ show (n * 100 `div` t) ++ "%)"
+n ./. t | otherwise = "(" ++ show n ++ "/" ++ show t ++ ")"
 
 -- | join lines together
 showAS :: [String] -> String
