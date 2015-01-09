@@ -1,7 +1,7 @@
 module Here (e,eF) where
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
-import Test.MuCheck.Utils.Helpers
+import Test.MuCheck.Utils.Common
 
 e :: QuasiQuoter 
 e = QuasiQuoter { quoteExp = stringE . strip,
