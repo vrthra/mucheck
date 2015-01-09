@@ -21,7 +21,7 @@ module Test.MuCheck.MuOp (MuOp
 import qualified Data.Generics as G
 import Control.Monad (MonadPlus, mzero)
 
-import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..))
+import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), prettyPrint, Pretty())
 
 type Module_ = Module SrcSpanInfo
 type Name_ = Name SrcSpanInfo
@@ -45,7 +45,7 @@ data MuOp = N  (Name_, Name_)
   deriving Eq
 
 -- | Apply the given function on the tuple inside MuOp
-apply :: (forall a. (Eq a, G.Typeable a, Show a) => (a,a) -> c) -> MuOp -> c
+apply :: (forall a. (Eq a, G.Typeable a, Show a, Pretty a) => (a,a) -> c) -> MuOp -> c
 apply f (N  m) = f m
 apply f (QN m) = f m
 apply f (QO m) = f m
@@ -64,8 +64,8 @@ mkMpMuOp :: (MonadPlus m, G.Typeable a) => MuOp -> a -> m a
 mkMpMuOp = apply $ G.mkMp . uncurry (~~>)
 
 -- | Show a specified mutation
-showM :: (Show a1, Show a) => (a, a1) -> String
-showM (s, t) = "\n" ++ show s ++ " ==> " ++ show t
+showM :: (Show a1, Show a, Pretty a, Pretty a1) => (a, a1) -> String
+showM (s, t) = "{\n" ++ prettyPrint s ++ "\n} ==> {\n" ++ prettyPrint t ++ "\n}"
 
 -- | MuOp instance for Show
 instance Show MuOp where
