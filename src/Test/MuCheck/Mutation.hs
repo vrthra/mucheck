@@ -25,6 +25,7 @@ import Test.MuCheck.TestAdapter
 -- configuraton
 genMutants ::
      FilePath           -- ^ The module we are mutating
+  -> FilePath           -- ^ Coverage information for the module
   -> IO (Int,[Mutant]) -- ^ Returns the covering mutants produced, and original length.
 genMutants = genMutantsWith defaultConfig
 
@@ -35,8 +36,9 @@ genMutants = genMutantsWith defaultConfig
 genMutantsWith ::
      Config                     -- ^ The configuration to be used
   -> FilePath                   -- ^ The module we are mutating
+  -> FilePath                   -- ^ Coverage information for the module
   -> IO (Int, [Mutant])         -- ^ Returns the covered mutants produced, and the original number
-genMutantsWith _config filename  = do
+genMutantsWith _config filename  tix = do
       f <- readFile filename
 
       let modul = getModuleName (getASTFromStr f)
@@ -46,7 +48,7 @@ genMutantsWith _config filename  = do
       -- We have a choice here. We could allow users to specify test specific
       -- coverage rather than a single coverage. This can further reduce the
       -- mutants.
-      c <- getUnCoveredPatches "test.tix" modul
+      c <- getUnCoveredPatches tix modul
       -- check if the mutants span is within any of the covered spans.
       return $ case c of
                             Nothing -> (-1, mutants)

@@ -21,10 +21,11 @@ import Test.MuCheck.AnalysisSummary
 
 mucheck :: (Show b, Summarizable b, TRun a b) =>
      a                                                     -- ^ The module we are mutating
+  -> FilePath                                              -- ^ The HPC <coverage>.tix file
   -> IO (MAnalysisSummary, [MutantSummary])                -- ^ Returns a tuple of full summary, and individual mutant results.
-mucheck moduleFile = do
+mucheck moduleFile tix = do
   -- get tix here.
-  (len, mutants) <- genMutants (getName moduleFile)
+  (len, mutants) <- genMutants (getName moduleFile) tix
   -- Should we do random sample on covering alone or on the full?
   smutants <- sampler defaultConfig mutants
   tests <- getAllTests (getName moduleFile)
