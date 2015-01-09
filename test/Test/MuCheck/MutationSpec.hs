@@ -1,23 +1,45 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Test.MuCheck.MutationSpec where
 
+import qualified Test.MuCheck.MutationSpec.Helpers as H
+import qualified Test.MuCheck.Utils.Helpers
 import Test.Hspec
 import System.Random
-import Test.MuCheck.Mutation (getASTFromStr, mutate, mutatesN,
-  selectGuardedBoolNegOps,
-  selectIfElseBoolNegOps,
-  selectLitOps,
-  selectBLitOps,
-  selectFnMatches)
+import Test.MuCheck.Mutation
 import Control.Monad (MonadPlus, mplus, mzero)
 import Test.MuCheck.MuOp (mkMpMuOp, MuOp, (==>))
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
-import Language.Haskell.Exts
+import Language.Haskell.Exts.Annotated
+import Here
 
 main :: IO ()
 main = hspec spec
 
 spec :: Spec
-spec = do return ()
+spec = do
+  describe "selectFnMatches" $ do
+    it "returns function muops" $ do
+      let text = H._myprop_noann
+          res =  [[e|
+{
+myFn [] = 0
+myFn (x : xs) = 1 + myFn xs
+} ==> {
+myFn (x : xs) = 1 + myFn xs
+myFn [] = 0
+}|],[e|{
+myFn [] = 0
+myFn (x : xs) = 1 + myFn xs
+} ==> {
+myFn [] = 0
+}|],[e|{
+myFn [] = 0
+myFn (x : xs) = 1 + myFn xs
+} ==> {
+myFn (x : xs) = 1 + myFn xs
+}|]]
+      map show (selectFnMatches (getASTFromStr text)) `shouldBe` res
+  
 
 {-
   describe "selectGuardedBoolNegOps" $ do
