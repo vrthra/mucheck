@@ -5,16 +5,19 @@ import Trace.Hpc.Tix
 import Trace.Hpc.Mix
 import Trace.Hpc.Util
 
+-- | Span info - same as HpcPos
 type Span = HpcPos
 
 -- | Convert a 4-tuple to a span
 toSpan :: (Int, Int, Int, Int) -> Span
 toSpan = toHpcPos
 
+-- | Whether a line is covered or not
 data TCovered = TCovered
               | TNotCovered
   deriving (Eq, Show)
 
+-- | Whether a line is covered or not
 isCovered :: TCovered -> Bool
 isCovered TCovered = True
 isCovered _  = False
@@ -45,6 +48,7 @@ parseTix path = do
 getMix :: TixModule -> IO Mix
 getMix tm = readMix [".hpc"] (Right tm)
 
+-- | return the tix and mix information
 getMixedTix :: String -> IO [(String, [(Span, TCovered)])]
 getMixedTix file = do
   tms <- parseTix file
@@ -78,9 +82,11 @@ getUnCoveredPatches file name = do
             [] -> Nothing
             _ -> Just $ removeRedundantSpans $ map fst $  uncovSpan
 
+-- | Get the span and covering information of the given module
 getNamedModule :: String -> [(String, [(Span,TCovered)])] -> [(Span,TCovered)]
 getNamedModule mname val = snd . head $ filter (\(a, _b) -> a == mname) val
 
+-- | Remove spans which are contained within others of same kind.
 removeRedundantSpans :: [Span] -> [Span]
 removeRedundantSpans [] = []
 removeRedundantSpans [x] = [x]

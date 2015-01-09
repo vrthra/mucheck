@@ -49,7 +49,6 @@ rSampleF :: Rational -> [t] -> IO [t]
 rSampleF n t = do g <- genRandomSeed
                   return $ sampleF g n t
 
-
 -- | The `remElt` function removes element at index specified from a list
 remElt :: Int -> [a] -> [a]
 remElt idx xs = front ++ ack
@@ -82,24 +81,27 @@ hash :: String -> String
 hash s = (if h < 0 then "x" else "y") ++ show (abs h)
   where h = H.hash s
 
+-- | convert a tuple with element and second array to an array of
+-- tuples by repeating the first element 
 spread :: (a, [b]) -> [(a, b)]
 spread (a,lst) = map (a,) lst
 
+-- | Apply a function to the last of a tuple
 apSnd :: (b -> c) -> (a,b) -> (a,c)
 apSnd f (a,b) = (a, f b)
 
+-- | Apply a function to the last of a 3-tuple
 apTh :: (c -> d) -> (a,b,c) -> (a,b,d)
 apTh f (a,b,c) = (a, b, f c)
 
+-- | Strip whitespace from ends
 strip :: String -> String
 strip = lstrip . rstrip
+  where white :: String
+        white = " \t\r\n"
+        lstrip :: String -> String
+        lstrip (x:xs) | x `elem` white = lstrip xs
+        lstrip s =  s
+        rstrip :: String -> String
+        rstrip = reverse . lstrip . reverse
 
-white :: String
-white = " \t\r\n"
-
-lstrip :: String -> String
-lstrip (x:xs) | x `elem` white = lstrip xs
-lstrip s =  s
-
-rstrip :: String -> String
-rstrip = reverse . lstrip . reverse

@@ -59,3 +59,6 @@
 ### We should verify the use of once on boolNegate
 
 ### put the underlying modulefile into a monad so can avoid passing it around.
+
+### We may allow users to specify test specific coverage information.
+

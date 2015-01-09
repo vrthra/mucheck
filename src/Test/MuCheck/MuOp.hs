@@ -24,14 +24,23 @@ import Control.Monad (MonadPlus, mzero)
 
 import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), srcSpanStart, srcSpanEnd, prettyPrint, Pretty(), Annotated(..))
 
+-- | SrcSpanInfo wrapper
 type Module_ = Module SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type Name_ = Name SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type QName_ = QName SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type QOp_ = QOp SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type Exp_ = Exp SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type Decl_ = Decl SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type Literal_ = Literal SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type GuardedRhs_ = GuardedRhs SrcSpanInfo
+-- | SrcSpanInfo wrapper
 type Annotation_ = Annotation SrcSpanInfo
 
 

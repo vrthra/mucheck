@@ -42,6 +42,10 @@ genMutantsWith _config filename  = do
       let modul = getModuleName (getASTFromStr f)
           mutants :: [Mutant]
           mutants = genMutantsForSrc defaultConfig f
+
+      -- We have a choice here. We could allow users to specify test specific
+      -- coverage rather than a single coverage. This can further reduce the
+      -- mutants.
       c <- getUnCoveredPatches "test.tix" modul
       -- check if the mutants span is within any of the covered spans.
       let coveredMutants = case c of
@@ -73,11 +77,19 @@ genMutantsForSrc config src = map (toMutant . (apTh $ prettyPrint . withAnn)) $ 
         ast = putDecl origAst noAnn
         withAnn mast = putDecl mast $ (getDecl mast) ++ onlyAnn
 
-programMutants :: Config -> Module_ -> [(MuVar, Span, Module_)]
-programMutants config ast =  nub $ mutatesN (applicableOps config ast) (MutateOther [], toSpan (0,0,0,0), ast) fstOrder
+-- | Produce all mutants after applying all operators
+programMutants ::
+     Config                   -- ^ Configuration
+  -> Module_                  -- ^ Module to mutate
+  -> [(MuVar, Span, Module_)] -- ^ Returns mutated modules
+programMutants config ast =  nub $ mutatesN (applicableOps config ast) ast fstOrder
   where fstOrder = 1 -- first order
 
-applicableOps :: Config -> Module_ -> [(MuVar,MuOp)]
+-- | Returns all mutation operators
+applicableOps ::
+     Config                   -- ^ Configuration
+  -> Module_                  -- ^ Module to mutate
+  -> [(MuVar,MuOp)]           -- ^ Returns mutation operators
 applicableOps config ast = relevantOps ast opsList
   where opsList = concatMap spread [
             (MutatePatternMatch, selectFnMatches ast),
@@ -109,9 +121,14 @@ putDecl m _ = m
 -- | First and higher order mutation. The actual apply of mutation operators,
 -- and generation of mutants happens here.
 -- The third argument specifies whether it's first order or higher order
-mutatesN :: [(MuVar,MuOp)] -> (MuVar, Span, Module_) -> Int -> [(MuVar, Span, Module_)]
-mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
-mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
+mutatesN ::
+     [(MuVar,MuOp)]     -- ^ Applicable Operators
+  -> Module_            -- ^ Module to mutate
+  -> Int                -- ^ Order of mutation (usually 1 - first order)
+  -> [(MuVar, Span, Module_)] -- ^ Returns the mutated module
+mutatesN os ast n = mutatesN' os (MutateOther [], toSpan (0,0,0,0), ast) n
+  where mutatesN' ops ms 1 = concat [mutate op ms | op <- ops ]
+        mutatesN' ops ms c = concat [mutatesN' ops m 1 | m <- mutatesN' ops ms $ pred c]
 
 -- | Given a function, generate all mutants after applying applying
 -- op once (op might be applied at different places).
@@ -156,6 +173,7 @@ functionName (FunBind _l (Match _ (Symbol _ls n) _ _ _ : _)) = n
 functionName (PatBind _ (PVar _lpv (Ident _li n)) _ _)          = n
 functionName _                                   = []
 
+-- | The identifier of declared pragma
 pragmaName :: Decl_ -> String
 pragmaName (AnnPragma _ (Ann _l (Ident _li n) (Lit _ll (String _ls _t _)))) = n
 pragmaName _ = []
@@ -176,8 +194,10 @@ selectValOps :: (Typeable b, Mutable b) => (b -> Bool) -> (b -> [b]) -> Module_ 
 selectValOps predicate f m = concat [ x ==>* f x |  x <- vals ]
   where vals = listify predicate m
 
+-- | Look for literal values in AST, and return applicable MuOp transforms.
 selectLiteralOps :: Module_ -> [MuOp]
 selectLiteralOps m = selectLitOps m ++ selectBLitOps m
+
 -- | Look for literal values in AST, and return applicable MuOp transforms.
 -- Unfortunately booleans are not handled here.
 selectLitOps :: Module_ -> [MuOp]
@@ -250,10 +270,6 @@ selectIfElseBoolNegOps m = selectValOps isIf convert m
 --
 -- > myFn x | not (x == 1) = True
 -- > myFn   | otherwise = False
-
-l_ :: SrcSpanInfo
-l_ = SrcSpanInfo (SrcSpan "" 0 0 0 0) []
-
 selectGuardedBoolNegOps :: Module_ -> [MuOp]
 selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
   where isGuardedRhs :: GuardedRhs_ -> Bool
@@ -262,6 +278,11 @@ selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
         boolNegate _e@(Qualifier _l (Var _lv (UnQual _lu (Ident _li "otherwise")))) = [] -- VERIFY
         boolNegate (Qualifier l expr) = [Qualifier l (App l_ (Var l_ (UnQual l_ (Ident l_ "not"))) expr)]
         boolNegate _x = [] -- VERIFY
+
+-- | dummy 
+l_ :: SrcSpanInfo
+l_ = SrcSpanInfo (SrcSpan "" 0 0 0 0) []
+
 
 -- | Generate all operators for permuting and removal of pattern guards from
 -- function definitions

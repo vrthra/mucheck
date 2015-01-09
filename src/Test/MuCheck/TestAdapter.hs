@@ -14,6 +14,7 @@ data Summarizable a => InterpreterOutput a = Io {_io :: Either I.InterpreterErro
 data Mutant = Mutant { _mutant::String, _mtype::MuVar, _mspan::Span}
   deriving (Eq, Show)
 
+-- | Convert a tuple to a mutant
 toMutant :: (MuVar, Span, String) -> Mutant
 toMutant (m,s,str) = Mutant {_mutant = str, _mtype = m, _mspan = s}
 
@@ -38,6 +39,8 @@ class Typeable s => Summarizable s where
   isOther :: s -> Bool
   isOther x = not (isSuccess x) && not (isFailure x)
 
+-- | Specify the kind of test suite to run. The result processing, and also
+-- how the tests are run are based on this.
 class TRun a s | a -> s where
   -- | Generate a runnable test string out of passed in module name and
   -- annotated test function name.

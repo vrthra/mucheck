@@ -8,13 +8,15 @@ data GenerationMode
   | FirstAndHigherOrder
   deriving (Eq, Show)
 
--- | The configuration options
--- if 1 is provided, all mutants are selected for that kind, and 0 ensures that
--- no mutants are picked for that kind. Any fraction in between causes that
--- many mutants to be picked randomly from the available pool
-
+-- | For function mutations, whether the function is a symbol or an identifier
+-- for example,`head` is an identifier while `==` is a symbol.
 data FnType = FnSymbol | FnIdent
   deriving (Eq, Show)
+
+-- | User defined function groups. Indicate whether the functions are symbols
+-- or identifiers, and also the group of functions to interchange for.
+-- We dont allow mixing of identifiers and functions for now (harder to
+-- match)
 data FnOp = FnOp {_type :: FnType, _fns :: [String]}
   deriving (Eq, Show)
 
@@ -36,6 +38,10 @@ comparators = ["<", ">", "<=", ">=", "/=", "=="]
 binAriths :: [String]
 binAriths = ["+", "-", "*", "/"]
 
+-- | The configuration options
+-- if 1 is provided, all mutants are selected for that kind, and 0 ensures that
+-- no mutants are picked for that kind. Any fraction in between causes that
+-- many mutants to be picked randomly from the available pool
 data Config = Config {
 -- | Mutation operators on operator or function replacement
   muOp :: [FnOp]
@@ -103,7 +109,7 @@ defaultConfig = Config {
   , maxNumMutants = 300
   , genMode = FirstOrderOnly }
 
--- | Enumeration of different kinds of mutations
+-- | Enumeration of different variants of mutations
 data MuVar = MutatePatternMatch
            | MutateValues
            | MutateFunctions
@@ -122,6 +128,9 @@ getSample MutateNegateIfElse c = doNegateIfElse c
 getSample MutateNegateGuards c = doNegateGuards c
 getSample MutateOther{} _c = 1
 
+-- | similarity between two mutation variants. For ease of use, MutateOther is
+-- treated differently. For MutateOther, if the string is empty, then it is
+-- matched against any other MutateOther.
 similar :: MuVar -> MuVar -> Bool
 similar (MutateOther a) (MutateOther b) = if | a == [] -> True
                                              | b == [] -> True

@@ -15,6 +15,7 @@ data MAnalysisSummary = MAnalysisSummary {
   , _maErrors::Int         -- ^ The number of non-viable mutants.
 }
 
+-- | MAnalysisSummary to tuple
 maSummary :: MAnalysisSummary -> (Int, Int, Int, Int, Int, Int)
 maSummary MAnalysisSummary{..} = (_maOriginalNumMutants, _maCoveredNumMutants, _maNumMutants, _maAlive, _maKilled, _maErrors)
 
