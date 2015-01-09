@@ -44,15 +44,19 @@ genMutantsWith _config filename  = do
           mutants = genMutantsForSrc defaultConfig f
       c <- getUnCoveredPatches "test.tix" modul
       -- check if the mutants span is within any of the covered spans.
-      let coveredMutants = if c /= [] then removeUncovered c mutants else mutants
+      let coveredMutants = case c of
+                            Nothing -> mutants
+                            Just v -> removeUncovered v mutants
       return (length mutants, coveredMutants)
 
+-- | Remove mutants that are not covered by any tests
 removeUncovered :: [Span] -> [Mutant] -> [Mutant]
 removeUncovered uspans mutants = filter isMCovered mutants -- get only covering mutants.
   where  isMCovered :: Mutant -> Bool
          -- | is it contained in any of the spans? if it is, then return false.
-         isMCovered Mutant{..} = any (insideSpan _mspan) uspans
+         isMCovered Mutant{..} = not $ any (insideSpan _mspan) uspans
 
+-- | Get the module name from ast
 getModuleName :: Module t -> String
 getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _ )) _ _ _) = name
 getModuleName _ = ""

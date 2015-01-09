@@ -1,7 +1,6 @@
 module Test.MuCheck.Utils.Helpers where
 import Language.Haskell.Exts.Annotated
 import Test.MuCheck.MuOp
-import Data.List
 
 class Showx a where
   showx :: a -> String

@@ -69,12 +69,14 @@ getMixedTix file = do
 -- [10:1-11:26]
 -- | getUnCoveredPatches returns the largest parts of the program that are not
 -- covered.
-getUnCoveredPatches :: String -> String -> IO [Span]
+getUnCoveredPatches :: String -> String -> IO (Maybe [Span])
 getUnCoveredPatches file name = do
   val <- getMixedTix file
+  let modSpan = getNamedModule name val
+      uncovSpan = filter (not . isCovered . snd) modSpan
   return $ case val of
-    [] -> []
-    _ -> removeRedundantSpans $ map fst $ filter (not . isCovered . snd) $ getNamedModule name val
+            [] -> Nothing
+            _ -> Just $ removeRedundantSpans $ map fst $  uncovSpan
 
 getNamedModule :: String -> [(String, [(Span,TCovered)])] -> [(Span,TCovered)]
 getNamedModule mname val = snd . head $ filter (\(a, _b) -> a == mname) val
