@@ -138,8 +138,10 @@ mutatesN os ast n = mutatesN' os (MutateOther [], toSpan (0,0,0,0), ast) n
 mutate :: (MuVar, MuOp) -> (MuVar, Span, Module_) -> [(MuVar, Span, Module_)]
 mutate (v, op) (_v, _s, m) = map (v,toSpan $ getSpan op, ) $ once (mkMpMuOp op) m \\ [m]
 
--- | Generate sub-arrays with one less element
+-- | Generate sub-arrays with one less element except when we have only
+-- a single element.
 removeOneElem :: Eq t => [t] -> [[t]]
+removeOneElem [_] = []
 removeOneElem l = choose l (length l - 1)
 
 -- AST/module-related operations

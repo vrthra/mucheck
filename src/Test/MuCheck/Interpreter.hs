@@ -66,6 +66,7 @@ evalMutant tests Mutant{..} = do
   -- the result (we dont remove the file now, but can be added)
   createDirectoryIfMissing True ".mutants"
   let mutantFile = ".mutants/" ++ hash _mutant ++ ".hs"
+  putStrLn mutantFile
   writeFile mutantFile _mutant
   let logF = mutantFile ++ ".log"
   stopFast (evalTest mutantFile logF) tests

@@ -42,7 +42,8 @@ catchOutputStr f = do
 
 -- | Capture output and err of an IO action to a file
 catchOutput :: String -> IO a -> IO a
-catchOutput fn f = withFile fn WriteMode (redirectToHandle f)
+catchOutput fn f = f
+-- catchOutput fn f = withFile fn WriteMode (redirectToHandle f)
 
 -- | Redirect out and err to handle
 redirectToHandle :: IO b -> Handle -> IO b
