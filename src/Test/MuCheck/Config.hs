@@ -1,8 +1,6 @@
 -- | Configuration module
 module Test.MuCheck.Config where
 
-import Test.MuCheck.MuOp
-
 -- | The knob controlling if we want first order mutation.
 data GenerationMode
   = FirstOrderOnly
@@ -121,5 +119,5 @@ getSample MutateValues       c = doMutateValues c
 getSample MutateFunctions    c = doMutateFunctions c
 getSample MutateNegateIfElse c = doNegateIfElse c
 getSample MutateNegateGuards c = doNegateGuards c
-getSample MutateOther{} c = 1
+getSample MutateOther{} _c = 1
 

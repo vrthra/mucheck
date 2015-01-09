@@ -5,14 +5,15 @@ import Trace.Hpc.Mix
 import Trace.Hpc.Util
 
 data Span = Span Int Int Int Int
+  deriving (Eq, Show)
 
 -- | Convert a 4-tuple to a span
 toSpan :: (Int, Int, Int, Int) -> Span
 toSpan (i,j,k,l) = Span i j k l
 
 -- | `mixTix` joins together the location and coverage data.
-mixTix :: Mix -> TixModule ->[(Span, Bool)]
-mixTix (Mix _fp _int _h _i mixEntry) tix = zipWith toLocC mymixes mytixes
+mixTix :: String -> Mix -> TixModule -> (String, [(Span, Bool)])
+mixTix s (Mix _fp _int _h _i mixEntry) tix = (s, zipWith toLocC mymixes mytixes)
   where mytixes = tixModuleTixs tix
         mymixes = mixEntry
         toLocC (hpos, _) covT = (toSpan (fromHpcPos hpos), covT > 0)
@@ -30,3 +31,17 @@ parseTix path = do
 getMix :: TixModule -> IO Mix
 getMix tm = readMix [".hpc"] (Right tm)
 
+getMixedTix :: String -> IO [(String, [(Span, Bool)])]
+getMixedTix file = do
+  tms <- parseTix file
+  mixs <- mapM getMix tms
+  let names = map tixModuleName tms
+  return $ zipWith3 mixTix names mixs tms
+
+getCoveredModule :: String -> String -> IO [Span]
+getCoveredModule file name = do
+  val <- getMixedTix file
+  return $ map fst $ filter snd $ nmod val
+  -- return ([] :: [Span])
+  where nmod :: [(String, [(Span,Bool)])] -> [(Span,Bool)]
+        nmod val = snd . head $ filter (\(a, b) -> a == name) val

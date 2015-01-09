@@ -1,4 +1,4 @@
-{-#  LANGUAGE Rank2Types, TypeSynonymInstances, FlexibleInstances #-}
+{-#  LANGUAGE Rank2Types, TypeSynonymInstances, FlexibleInstances, ConstraintKinds #-}
 -- | Mutation operators
 module Test.MuCheck.MuOp (MuOp
           , Mutable(..)
@@ -16,12 +16,13 @@ module Test.MuCheck.MuOp (MuOp
           , Literal_
           , GuardedRhs_
           , Annotation_
+          , getSpan
           ) where
 
 import qualified Data.Generics as G
 import Control.Monad (MonadPlus, mzero)
 
-import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), prettyPrint, Pretty())
+import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), srcSpanStart, srcSpanEnd, prettyPrint, Pretty(), Annotated(..))
 
 type Module_ = Module SrcSpanInfo
 type Name_ = Name SrcSpanInfo
@@ -53,6 +54,21 @@ apply f (E  m) = f m
 apply f (D  m) = f m
 apply f (L  m) = f m
 apply f (G  m) = f m
+
+-- How do I get the Annotated (a SrcSpanInfo) on apply's signature?
+-- | getSpan retrieve the span as a tuple
+getSpan :: MuOp -> (Int, Int, Int, Int)
+getSpan m = (startLine, startCol, endLine, endCol)
+  where (endLine, endCol) = srcSpanEnd lspan
+        (startLine, startCol) = srcSpanStart lspan
+        getSpan' (N  (a,_)) = ann a
+        getSpan' (QN (a,_)) = ann a
+        getSpan' (QO (a,_)) = ann a
+        getSpan' (E  (a,_)) = ann a
+        getSpan' (D  (a,_)) = ann a
+        getSpan' (L  (a,_)) = ann a
+        getSpan' (G  (a,_)) = ann a
+        lspan = srcInfoSpan $ getSpan' m
 
 -- | The function `same` applies on a `MuOP` determining if transformation is
 -- between same values.

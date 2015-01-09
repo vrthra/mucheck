@@ -8,12 +8,14 @@ import Language.Haskell.Exts.Annotated(Literal(Int, Char, Frac, String, PrimInt,
         Stmt(Qualifier), Module(Module),
         Name(Ident), Decl(FunBind, PatBind, AnnPragma),
         GuardedRhs(GuardedRhs), Annotation(Ann), Name(Symbol, Ident),
-        prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..))
+        prettyPrint, fromParseResult, parseModule, SrcSpanInfo(..), SrcSpan(..),
+        ModuleHead(..), ModuleName(..))
 import Data.Generics (Typeable, mkMp, listify)
 import Data.List(nub, (\\), permutations, partition)
 import System.Random (RandomGen)
 import Control.Monad (liftM)
 
+import Test.MuCheck.Tix
 import Test.MuCheck.MuOp
 import Test.MuCheck.Utils.Syb
 import Test.MuCheck.Utils.Common
@@ -38,17 +40,24 @@ genMutantsWith ::
 genMutantsWith args filename  = do
       g <- genRandomSeed
       f <- readFile filename
-      let mutants = genMutantsForSrc defaultConfig f
+      let modul = getModuleName (getASTFromStr f)
+          mutants = genMutantsForSrc defaultConfig f
+      _c <- getCoveredModule "test.tix" modul
+      -- check if the mutants span is within any of the covered spans.
       return $ sampler args g mutants
+
+getModuleName :: Module t -> String
+getModuleName (Module _ (Just (ModuleHead _ (ModuleName _ name) _ _ )) _ _ _) = name
+getModuleName _ = ""
 
 -- | Wrapper around sampleF that returns correct sampling ratios according to
 -- configuration passed.
 sampler :: RandomGen g =>
      Config                   -- ^ Configuration
   -> g                        -- ^ The random seed
-  -> [(MuVars, t)]            -- ^ The original list of mutation operators
+  -> [(MuVars, Span, t)]            -- ^ The original list of mutation operators
   -> [t]                      -- ^ Returns the sampled mutation operators
-sampler _args _g mv = map snd mv
+sampler _args _g mv = map (\(_a,_b,c) -> c ) mv
 
 -- | The `genMutantsForSrc` takes the function name to mutate, source where it
 -- is defined, and a sampling function, and returns the mutated sources selected
@@ -56,15 +65,15 @@ sampler _args _g mv = map snd mv
 genMutantsForSrc ::
      Config                   -- ^ Configuration
   -> String                   -- ^ The module we are mutating
-  -> [(MuVars, Mutant)]                 -- ^ Returns the sampled mutants
-genMutantsForSrc config src = map (apSnd $ prettyPrint . withAnn) $ programMutants config ast
+  -> [(MuVars, Span, Mutant)]                 -- ^ Returns the sampled mutants
+genMutantsForSrc config src = map (apTh $ prettyPrint . withAnn) $ programMutants config ast
   where origAst = getASTFromStr src
         (onlyAnn, noAnn) = splitAnnotations origAst
         ast = putDecl origAst noAnn
         withAnn mast = putDecl mast $ (getDecl mast) ++ onlyAnn
 
-programMutants :: Config -> Module_ -> [(MuVars, Module_)]
-programMutants config ast =  nub $ mutatesN (applicableOps config ast) (MutateOther [], ast) fstOrder
+programMutants :: Config -> Module_ -> [(MuVars, Span, Module_)]
+programMutants config ast =  nub $ mutatesN (applicableOps config ast) (MutateOther [], toSpan (0,0,0,0), ast) fstOrder
   where fstOrder = 1 -- first order
 
 applicableOps :: Config -> Module_ -> [(MuVars,MuOp)]
@@ -99,7 +108,7 @@ putDecl m _ = m
 -- | First and higher order mutation. The actual apply of mutation operators,
 -- and generation of mutants happens here.
 -- The third argument specifies whether it's first order or higher order
-mutatesN :: [(MuVars,MuOp)] -> (MuVars, Module_) -> Int -> [(MuVars, Module_)]
+mutatesN :: [(MuVars,MuOp)] -> (MuVars, Span, Module_) -> Int -> [(MuVars, Span, Module_)]
 mutatesN ops ms 1 = concat [mutate op ms | op <- ops ]
 mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 
@@ -107,8 +116,8 @@ mutatesN ops ms c = concat [mutatesN ops m 1 | m <- mutatesN ops ms $ pred c]
 -- op once (op might be applied at different places).
 -- E.g.: if the operator is (op = "<" ==> ">") and there are two instances of
 -- "<" in the AST, then it will return two AST with each replaced.
-mutate :: (MuVars, MuOp) -> (MuVars, Module_) -> [(MuVars, Module_)]
-mutate (v, op) (_v, m) = map (v, ) $ once (mkMpMuOp op) m \\ [m]
+mutate :: (MuVars, MuOp) -> (MuVars, Span, Module_) -> [(MuVars, Span, Module_)]
+mutate (v, op) (_v, _s, m) = map (v,toSpan $ getSpan op, ) $ once (mkMpMuOp op) m \\ [m]
 
 -- | Generate sub-arrays with one less element
 removeOneElem :: Eq t => [t] -> [[t]]
@@ -297,6 +306,7 @@ selectIdentFnOps m s = selectValOps isCommonFn convert m
         convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map  (\v -> Var lv_ (UnQual lu_ (Ident li_ v))) $ filter (/= n) s
         convert _ = []
 
+-- | Generate all operators depending on whether it is a symbol or not.
 selectFunctionOps :: [FnOp] -> Module_ -> [MuOp]
 selectFunctionOps fo f = (concatMap (selectIdentFnOps f) idents) ++ (concatMap (selectSymbolFnOps f) syms)
   where idents = map _fns $ filter (\a -> _type a == FnIdent) fo

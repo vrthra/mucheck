@@ -82,6 +82,9 @@ spread (a,lst) = map (a,) lst
 apSnd :: (b -> c) -> (a,b) -> (a,c)
 apSnd f (a,b) = (a, f b)
 
+apTh :: (c -> d) -> (a,b,c) -> (a,b,d)
+apTh f (a,b,c) = (a, b, f c)
+
 strip :: String -> String
 strip = lstrip . rstrip
 
