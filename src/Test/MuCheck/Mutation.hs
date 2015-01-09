@@ -19,6 +19,7 @@ import Test.MuCheck.Utils.Syb
 import Test.MuCheck.Utils.Common
 import Test.MuCheck.Config
 import Test.MuCheck.TestAdapter
+import Test.MuCheck.Utils.Helpers
 
 -- | The `genMutants` function is a wrapper to genMutantsWith with standard
 -- configuraton
@@ -269,10 +270,10 @@ selectGuardedBoolNegOps m = selectValOps isGuardedRhs convert m
 -- > myFn (x:xs) = False
 
 selectFnMatches :: Module_ -> [MuOp]
-selectFnMatches m = selectValOps isFunct convert m
+selectFnMatches m = selectValOps isFunct selFnconvert m
   where isFunct :: Decl_ -> Bool
         isFunct FunBind{} = True
         isFunct _    = False
-        convert (FunBind l ms) = map (FunBind l) $ filter (== ms) (permutations ms ++ removeOneElem ms)
+        convert (FunBind l ms) = map (FunBind l) $ filter (/= ms) (permutations ms ++ removeOneElem ms)
         convert _ = []
 
