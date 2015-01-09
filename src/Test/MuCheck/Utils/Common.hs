@@ -82,3 +82,15 @@ spread (a,lst) = map (a,) lst
 apSnd :: (b -> c) -> (a,b) -> (a,c)
 apSnd f (a,b) = (a, f b)
 
+strip :: String -> String
+strip = lstrip . rstrip
+
+white :: String
+white = " \t\r\n"
+
+lstrip :: String -> String
+lstrip (x:xs) | x `elem` white = lstrip xs
+lstrip s =  s
+
+rstrip :: String -> String
+rstrip = reverse . lstrip . reverse
