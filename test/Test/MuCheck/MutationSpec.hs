@@ -17,9 +17,104 @@ main = hspec spec
 
 spec :: Spec
 spec = do
+  describe "selectLitOps" $ do
+    it "returns binarylit muops" $ do
+      let text = [e|
+module Prop where
+import Test.QuickCheck
+
+myFn x = if x == 1 then True else False
+|]
+          res =  [[e|
+{
+1
+} ==> {
+2
+}
+|],[e|
+{
+1
+} ==> {
+0
+}
+|],[e|
+{
+1
+} ==> {
+1
+}
+|] ]
+
+      map show (selectLitOps (getASTFromStr text)) `shouldBe` res
+
+  describe "selectBLitOps" $ do
+    it "returns binarylit muops" $ do
+      let text = [e|
+module Prop where
+import Test.QuickCheck
+
+myFn x = if x == 1 then True else False
+|]
+          res =  [[e|
+{
+True
+} ==> {
+False
+}
+|],[e|
+{
+False
+} ==> {
+True
+}
+|] ]
+      map show (selectBLitOps (getASTFromStr text)) `shouldBe` res
+
+
+  describe "selectIfElseBoolNegOps" $ do
+    it "returns ifelse muops" $ do
+      let text = [e|
+module Prop where
+import Test.QuickCheck
+
+myFn x = if x == 1 then True else False
+|]
+          res =  [[e|
+{
+if x == 1 then True else False
+} ==> {
+if x == 1 then False else True
+}
+|]]
+      map show (selectIfElseBoolNegOps (getASTFromStr text)) `shouldBe` res
+
+  describe "selectGuardedBoolNegOps" $ do
+    it "returns guardedboolean muops" $ do
+      let text = [e|
+module Prop where
+import Test.QuickCheck
+
+myFn x | x == 1 = True
+myFn   | otherwise = False
+|]
+          res =  [[e|
+{
+| x == 1 = True
+} ==> {
+| not (x == 1) = True
+}
+|]]
+      map show (selectGuardedBoolNegOps (getASTFromStr text)) `shouldBe` res
+
   describe "selectFnMatches" $ do
-    it "returns function muops" $ do
-      let text = H._myprop_noann
+    it "returns fn muops" $ do
+      let text = [e|
+module Prop where
+import Test.QuickCheck
+
+myFn [] = 0
+myFn (x:xs) = 1 + myFn xs
+|]
           res =  [[e|
 {
 myFn [] = 0
@@ -39,7 +134,7 @@ myFn (x : xs) = 1 + myFn xs
 myFn (x : xs) = 1 + myFn xs
 }|]]
       map show (selectFnMatches (getASTFromStr text)) `shouldBe` res
-  
+ 
 
 {-
   describe "selectGuardedBoolNegOps" $ do
