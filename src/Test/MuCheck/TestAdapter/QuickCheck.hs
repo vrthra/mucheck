@@ -26,8 +26,8 @@ instance TRun QuickCheckRun QuickCheckSummary where
   getName (QuickCheckRun str) = str 
   toRun s = QuickCheckRun s
 
-  summarize_ _m = (testSummary :: Mutant -> TestStr -> InterpreterOutput QuickCheckSummary -> Summary)
-  success_ _m = (isSuccess :: QuickCheckSummary -> Bool)
-  failure_ _m = (isFailure :: QuickCheckSummary -> Bool)
-  other_ _m = (isOther :: QuickCheckSummary -> Bool)
+  summarize_ _m = testSummary :: Mutant -> TestStr -> InterpreterOutput QuickCheckSummary -> Summary
+  success_ _m = isSuccess :: QuickCheckSummary -> Bool
+  failure_ _m = isFailure :: QuickCheckSummary -> Bool
+  other_ _m = isOther :: QuickCheckSummary -> Bool
 

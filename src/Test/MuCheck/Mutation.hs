@@ -71,11 +71,11 @@ genMutantsForSrc ::
      Config                   -- ^ Configuration
   -> String                   -- ^ The module we are mutating
   -> [Mutant] -- ^ Returns the mutants
-genMutantsForSrc config src = map (toMutant . (apTh $ prettyPrint . withAnn)) $ programMutants config ast
+genMutantsForSrc config src = map (toMutant . apTh (prettyPrint . withAnn)) $ programMutants config ast
   where origAst = getASTFromStr src
         (onlyAnn, noAnn) = splitAnnotations origAst
         ast = putDecl origAst noAnn
-        withAnn mast = putDecl mast $ (getDecl mast) ++ onlyAnn
+        withAnn mast = putDecl mast $ getDecl mast ++ onlyAnn
 
 -- | Produce all mutants after applying all operators
 programMutants ::
@@ -115,7 +115,7 @@ getDecl _ = []
 
 -- | Put the given declarations into the given module
 putDecl :: Module_ -> [Decl_] -> Module_
-putDecl (Module a b c d _) decls = (Module a b c d decls)
+putDecl (Module a b c d _) decls = Module a b c d decls
 putDecl m _ = m
 
 -- | First and higher order mutation. The actual apply of mutation operators,
@@ -325,12 +325,12 @@ selectIdentFnOps m s = selectValOps isCommonFn convert m
   where isCommonFn :: Exp_ -> Bool
         isCommonFn (Var _lv (UnQual _lu (Ident _l n))) | n `elem` s = True
         isCommonFn _ = False
-        convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map  (\v -> Var lv_ (UnQual lu_ (Ident li_ v))) $ filter (/= n) s
+        convert (Var lv_ (UnQual lu_ (Ident li_ n))) = map  (Var lv_ . UnQual lu_ . Ident li_) $ filter (/= n) s
         convert _ = []
 
 -- | Generate all operators depending on whether it is a symbol or not.
 selectFunctionOps :: [FnOp] -> Module_ -> [MuOp]
-selectFunctionOps fo f = (concatMap (selectIdentFnOps f) idents) ++ (concatMap (selectSymbolFnOps f) syms)
+selectFunctionOps fo f = concatMap (selectIdentFnOps f) idents ++ concatMap (selectSymbolFnOps f) syms
   where idents = map _fns $ filter (\a -> _type a == FnIdent) fo
         syms = map _fns $ filter (\a -> _type a == FnSymbol) fo
 

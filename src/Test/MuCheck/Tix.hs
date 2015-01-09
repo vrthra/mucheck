@@ -80,7 +80,7 @@ getUnCoveredPatches file name = do
       uncovSpan = filter (not . isCovered . snd) modSpan
   return $ case val of
             [] -> Nothing
-            _ -> Just $ removeRedundantSpans $ map fst $  uncovSpan
+            _ -> Just $ removeRedundantSpans $ map fst uncovSpan
 
 -- | Get the span and covering information of the given module
 getNamedModule :: String -> [(String, [(Span,TCovered)])] -> [(Span,TCovered)]

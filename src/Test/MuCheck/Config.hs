@@ -132,8 +132,8 @@ getSample MutateOther{} _c = 1
 -- treated differently. For MutateOther, if the string is empty, then it is
 -- matched against any other MutateOther.
 similar :: MuVar -> MuVar -> Bool
-similar (MutateOther a) (MutateOther b) = if | a == [] -> True
-                                             | b == [] -> True
+similar (MutateOther a) (MutateOther b) = if | null a  -> True
+                                             | null b -> True
                                              | otherwise -> a == b
 similar x y = x == y
 
