@@ -48,10 +48,9 @@ genMutantsWith _config filename  = do
       -- mutants.
       c <- getUnCoveredPatches "test.tix" modul
       -- check if the mutants span is within any of the covered spans.
-      let coveredMutants = case c of
-                            Nothing -> mutants
-                            Just v -> removeUncovered v mutants
-      return (length mutants, coveredMutants)
+      return $ case c of
+                            Nothing -> (-1, mutants)
+                            Just v -> (length mutants, removeUncovered v mutants)
 
 -- | Remove mutants that are not covered by any tests
 removeUncovered :: [Span] -> [Mutant] -> [Mutant]

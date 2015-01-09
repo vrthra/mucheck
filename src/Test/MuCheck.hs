@@ -31,7 +31,9 @@ mucheck moduleFile = do
   (fsum', msum) <- evaluateMutants moduleFile smutants (map (genTest moduleFile) tests)
   -- set the original size of mutants. (We report the results based on original
   -- number of mutants, not just the covered ones.)
-  let fsum = fsum' {_maNumMutants = len}
+  let fsum = case len of
+              -1 -> fsum' {_maOriginalNumMutants = -1, _maCoveredNumMutants = -1}
+              _  -> fsum' {_maOriginalNumMutants = len, _maCoveredNumMutants = length mutants}
   return (fsum, msum)
 
 -- | Wrapper around sampleF that returns correct sampling ratios according to
