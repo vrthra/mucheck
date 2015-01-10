@@ -32,7 +32,7 @@ tt v = trace (">" ++ show v) v
 catchOutputStr :: IO a -> IO (a,String)
 catchOutputStr f = do
   isdebug <- lookupEnv "MuDEBUG"
-  case isdebug of 
+  case isdebug of
     Just _ -> liftM (,"") f
     Nothing -> withSystemTempFile "_mucheck" $ \tmpf tmph -> do
         res <- redirectToHandle f tmph
@@ -42,7 +42,11 @@ catchOutputStr f = do
 
 -- | Capture output and err of an IO action to a file
 catchOutput :: String -> IO a -> IO a
-catchOutput fn f = withFile fn WriteMode (redirectToHandle f)
+catchOutput fn f = do
+  isdebug <- lookupEnv "MuDEBUG"
+  case isdebug of 
+    Just _ -> f
+    Nothing -> withFile fn WriteMode (redirectToHandle f)
 
 -- | Redirect out and err to handle
 redirectToHandle :: IO b -> Handle -> IO b
