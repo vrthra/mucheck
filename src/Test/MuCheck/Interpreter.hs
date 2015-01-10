@@ -7,13 +7,13 @@ import qualified Language.Haskell.Interpreter as I
 import Control.Monad.Trans (liftIO)
 import Control.Monad (liftM)
 import Data.Typeable
-import Test.MuCheck.Utils.Print (catchOutput)
 import Data.Either (partitionEithers)
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (withArgs)
 
 import Test.MuCheck.TestAdapter
 import Test.MuCheck.Utils.Common
+import Test.MuCheck.Utils.Print
 import Test.MuCheck.AnalysisSummary
 
 
@@ -66,6 +66,9 @@ evalMutant tests Mutant{..} = do
   -- the result (we dont remove the file now, but can be added)
   createDirectoryIfMissing True ".mutants"
   let mutantFile = ".mutants/" ++ hash _mutant ++ ".hs"
+
+  say mutantFile
+
   writeFile mutantFile _mutant
   let logF = mutantFile ++ ".log"
   stopFast (evalTest mutantFile logF) tests

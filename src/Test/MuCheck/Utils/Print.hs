@@ -57,3 +57,9 @@ redirectToHandle f tmph = do
     hDuplicateTo stderr_dup stderr
     return res
 
+say :: String -> IO ()
+say str = do
+  isdebug <- lookupEnv "MuDEBUG"
+  case isdebug of
+    Just _ -> putStrLn str
+    _ -> return ()
