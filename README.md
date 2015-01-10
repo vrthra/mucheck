@@ -7,69 +7,72 @@ $ cabal update
 $ cabal install cabal-install
 $ cabal install --only-dependencies --enable-tests
 ```
-# Install one of the adapter packages
+# Use the provided sample adapter
 
-* [mucheck-quickcheck](https://bitbucket.org/osu-testing/mucheck-quickcheck)
-* [mucheck-smallcheck](https://bitbucket.org/osu-testing/mucheck-smallcheck)
-* [mucheck-hunit](https://bitbucket.org/osu-testing/mucheck-hunit)
-* [mucheck-hspec](https://bitbucket.org/osu-testing/mucheck-hspec)
+We are going to use the simplistic `Test.MuCheck.TestAdapter.AssertCheck`
+module for our example.
 
-# Execute the adapter help
-```
-$ $dist/mucheck-quickcheck -h
-$ $dist/mucheck-smallcheck -h
-$ $dist/mucheck-hunit -h
-$ $dist/mucheck-hspec -h
-```
-Use the example given.
-## QuickCheck
-```
-$ ./mucheck-quickcheck Examples/QuickCheckTest.hs 'quickCheckResult idEmpProp' 'quickCheckResult revProp' 'quickCheckResult modelProp'
-```
+First, we need the coverage information of our tests. While it is not
+a required part, it is *strongly* recommended that you provide the coverage
+information of your module using `-fhpc` flag to ghc. MuCheck can cut down
+on the number of mutants generated drastically by using the `HPC` information.
 
-# Or use it from ghci as a library, after copying one of the examples like this.
-## QuickCheck
+Open MuCheck.cabal and inspect the `sample-test` executable, in particular,
+see the ghc options passed. It passes `-fhpc`. Next, we ask the cabal to build
+the `sample-test` for us.
+
 ```
-$ cp ../mucheck-quickcheck/Examples/QuickCheckTest.hs Examples/QuickCheckTest.hs
-$ ghci
-> :m + Test.MuCheck
-> :m + Test.MuCheck.TestAdapter
-> :m + Test.MuCheck.TestAdapter.QuickCheck
-> :m + Test.QuickCheck.Test
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput QuickCheckSummary] -> Summary) "Examples/QuickCheckTest.hs" ["quickCheckResult idEmpProp","quickCheckResult revProp","quickCheckResult modelProp"]
+cabal build sample-test
 ```
-## SmallCheck
+Now, run it to produce the required coverage information which is written to
+`sample-test.tix` in the current directory.
+
 ```
-$ cp ../mucheck-smallcheck/Examples/SmallCheckTest.hs Examples/SmallCheckTest.hs
-$ ghci
-> :m + Test.MuCheck
-> :m + Test.MuCheck.TestAdapter
-> :m + Test.MuCheck.TestAdapter.SmallCheck
-> :m + Test.SmallCheck
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput SmallCheckSummary] -> Summary) "Examples/SmallCheckTest.hs" ["smallCheckResult idEmpProp"]
+cabal run sample-test
 ```
 
-## HUnit
+We are now ready to run mucheck, let us run it.
+
 ```
-$ cp ../mucheck-hunit/Examples/HUnitTest.hs Examples/HUnitTest.hs
-$ ghci
-> :m + Test.MuCheck
-> :m + Test.MuCheck.TestAdapter
-> :m + Test.MuCheck.TestAdapter.HUnit
-> :m + Test.HUnit
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput HUnitSummary] -> Summary) "Examples/HUnitTest.hs" ["runTestTT tests"]
+cabal run mucheck -- -tix sample-test.tix Examples/AssertCheckTest.hs
 ```
 
-## Hspec
+This results (after a sufficiently large time) in
+
 ```
-$ cp ../mucheck-hspec/Examples/HspecTest.hs Examples/HspecTest.hs
-$ ghci
-> :m + Test.MuCheck
-> :m + Test.MuCheck.TestAdapter
-> :m + Test.MuCheck.TestAdapter.Hspec
-> :m + Test.Hspec.Core.Runner
-> mucheck (testSummary::[Mutant] -> [InterpreterOutput HspecSummary] -> Summary) "Examples/HspecTest.hs" ["spec"]
+Total mutants: 19 (basis for %)
+        Covered: 13
+        Sampled: 13
+        Errors: 0  (0%)
+        Alive: 1/19
+        Killed: 12/19 (63%)
+```
+This suggests that initially `19` mutants were generated, which was reduced to
+just 13 mutants that contained mutations where test suites can find them.
+
+The run resulted in just one of the mutants being alive, with a mutation score
+of 63%.
+
+All the steps above can also be done by running this make command in MuCheck
+directory.
+
+```
+make hpcex
 ```
 
-# Distributed mutation analysis
-See [d-mucheck](https://bitbucket.org/osu-testing/d-mucheck) for distributed mutation analysis wrapper over mucheck
+## Important
+
+Currently `MuCheck` is restricted to running mutation analysis on a single
+module at a time. In order for it to work, the module being tested should
+contain the tests also. Further the tests should be annotated with
+```
+{-# ANN <function name> "Test" #-}
+```
+If you have supporting functions, they should be annotated with "TestSupport".
+This allows MuCheck to find the tests to run, and also to figure out which of
+the functions to leave alone while mutating.
+
+Take a look at the `Examples/AssertCheckTest.hs` to see how mucheck expects the
+module to be.
+
+

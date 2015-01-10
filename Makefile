@@ -42,5 +42,6 @@ testrepl:
 
 hpcex:
 	- rm Examples/*.hi Examples/*.o *.tix tests
-	ghc -fhpc Examples/Main.hs --make -o tests
-
+	cabal build sample-test
+	./dist/build/sample-test/sample-test
+	./dist/build/mucheck/mucheck -tix sample-test.tix Examples/AssertCheckTest.hs
