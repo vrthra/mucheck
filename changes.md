@@ -10,6 +10,8 @@
   * Extracts the location of mutation for later use.
   * Add more test cases for mutations
   * Read the HPC Tix files, and use them to filter out unused mutants.
+  * Failfast when we fail not when we err.
+  * Add a sample adapter
 
 ## [0.3.0.0] (Rahul Gopinath)
   * Heavy refacoring, now summary is based on mutations rather than tests.

@@ -83,10 +83,21 @@ stopFast _ [] = return []
 stopFast fn (x:xs) = do
   v <- fn x
   case _io v of
-    Left _ -> return [v] -- load error
+    Left r -> do  say (showE r)
+                  -- do not append results of the run because mutant was non viable unless it was the last
+                  if xs == []
+                    then return [v]
+                    else stopFast fn xs
     Right out -> if isSuccess out
       then liftM (v :) $ stopFast fn xs
       else return [v] -- test failed (mutant detected)
+
+-- | Show error
+showE :: I.InterpreterError -> String
+showE (I.UnknownError e) = "Unknown: " ++ e
+showE (I.WontCompile e) = "Compile: " ++ show (head e)
+showE (I.NotAllowed e) = "Not Allowed: " ++ e
+showE (I.GhcException e) = "GhcException: " ++ e
 
 -- | Run one single test on a mutant
 evalTest :: (Typeable a, Summarizable a) =>
