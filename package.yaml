@@ -1,0 +1,71 @@
+name: MuCheck
+version:             0.4.0.1
+synopsis:            Automated Mutation Testing
+description: |
+  This package defines a mutation analysis library for haskell programs. It does this by parsing the haskell source, and
+  replacing a few of the common haskell functions and operators with other, but similar operators and functions, and
+  running the testsuite to check whether the difference has been detected.
+homepage:            https://bitbucket.com/osu-testing/mucheck
+license:             GPL-2
+license-file:        LICENSE
+author:              Duc Lee <ledu@onid.oregonstate.edu>, Rahul Gopinath <rahul@gopinath.org>
+maintainer:          rahul@gopinath.org
+category:            Testing
+build-type:          Simple
+extra-source-files:
+  - changes.md
+
+library:
+  source-dirs:       src
+  ghc-options:       -Wall
+
+  exposed-modules:
+    - Test.MuCheck
+    - Test.MuCheck.MuOp
+    - Test.MuCheck.Config
+    - Test.MuCheck.Interpreter
+    - Test.MuCheck.Mutation
+    - Test.MuCheck.Utils.Syb
+    - Test.MuCheck.Utils.Common
+    - Test.MuCheck.Utils.Print
+    - Test.MuCheck.TestAdapter
+    - Test.MuCheck.TestAdapter.AssertCheck
+    - Test.MuCheck.TestAdapter.AssertCheckAdapter
+    - Test.MuCheck.AnalysisSummary
+    - Test.MuCheck.Utils.Helpers
+    - Test.MuCheck.Tix
+
+executables:
+  mucheck:
+    main:            Main.hs
+    source-dirs:     src
+    ghc-options:     -Wall
+
+  sample-test:
+    main:            Examples/Main.hs
+    ghc-options:     -fhpc
+    dependencies:
+      - MuCheck
+    other-modules:
+      - Examples.AssertCheckTest
+
+tests:
+  spec:
+    source-dirs:       test
+    main:              Spec.hs
+    dependencies:
+      - MuCheck
+
+dependencies:
+  - base >= 4.9 && < 5
+  - haskell-src-exts
+  - syb
+  - time
+  - hint
+  - mtl
+  - random
+  - directory
+  - temporary
+  - hashable
+  - hpc
+  - template-haskell

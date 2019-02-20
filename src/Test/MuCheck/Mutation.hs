@@ -2,7 +2,7 @@
 -- | This module handles the mutation of different patterns.
 module Test.MuCheck.Mutation where
 
-import Language.Haskell.Exts.Annotated(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
+import Language.Haskell.Exts(Literal(Int, Char, Frac, String, PrimInt, PrimChar, PrimFloat, PrimDouble, PrimWord, PrimString),
         Exp(App, Var, If, Lit), QName(UnQual),
         Match(Match), Pat(PVar),
         Stmt(Qualifier), Module(Module),
