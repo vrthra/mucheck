@@ -60,9 +60,22 @@ library
 
 executable mucheck
   main-is:          Main.hs
+  other-modules:    Test.MuCheck
+                    Test.MuCheck.AnalysisSummary
+                    Test.MuCheck.Config
+                    Test.MuCheck.Interpreter
+                    Test.MuCheck.MuOp
+                    Test.MuCheck.Mutation
+                    Test.MuCheck.TestAdapter
+                    Test.MuCheck.TestAdapter.AssertCheck
+                    Test.MuCheck.TestAdapter.AssertCheckAdapter
+                    Test.MuCheck.Tix
+                    Test.MuCheck.Utils.Common
+                    Test.MuCheck.Utils.Print
+                    Test.MuCheck.Utils.Syb
   ghc-options:      -Wall
   build-depends:    base >=4 && <5,
-                    haskell-src-exts >=1.16,
+                    haskell-src-exts >=1.23,
                     syb >= 0.4.0,
                     time >= 1.4.0.1,
                     hint >= 0.3.1.0,
@@ -78,6 +91,7 @@ executable mucheck
 
 executable sample-test
   main-is:          Examples/Main.hs
+  other-modules:    Examples.AssertCheckTest
   build-depends:    base >=4 && <5,
                     MuCheck
   default-language: Haskell2010
@@ -87,20 +101,25 @@ test-suite spec
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Spec.hs
+  other-modules:    Test.MuCheck.MutationSpec
+                    Test.MuCheck.MutationSpec.Helpers
+                    Test.MuCheck.Utils.CommonSpec
+                    Test.MuCheck.Utils.PrintSpec
+                    Test.MuCheck.Utils.SybSpec
+                    Here
   default-language: Haskell2010
   build-depends:    base >=4 && <5,
-                    haskell-src-exts >=1.13,
+                    haskell-src-exts >= 1.23,
                     syb >= 0.4.0,
                     time >= 1.4.0.1,
                     hint >= 0.3.1.0,
                     mtl>=2.1.2,
                     hspec>= 2.0,
                     MuCheck,
-                    random >= 1.0.0,
+                    random >= 1.2.1,
                     directory >= 1.2.0.1,
                     temporary >= 1.1,
                     hashable >= 1.2,
                     hpc >= 0.5.1.1,
                     template-haskell >= 2.5.0
-  default-language: Haskell2010
-
+  build-tool-depends: hspec-discover:hspec-discover

@@ -22,7 +22,7 @@ module Test.MuCheck.MuOp (MuOp
 import qualified Data.Generics as G
 import Control.Monad (MonadPlus, mzero)
 
-import Language.Haskell.Exts.Annotated(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), srcSpanStart, srcSpanEnd, prettyPrint, Pretty(), Annotated(..))
+import Language.Haskell.Exts(Module, Name, QName, QOp, Exp, Decl, Literal, GuardedRhs, Annotation, SrcSpanInfo(..), srcSpanStart, srcSpanEnd, prettyPrint, Pretty(), Annotated(..))
 
 -- | SrcSpanInfo wrapper
 type Module_ = Module SrcSpanInfo

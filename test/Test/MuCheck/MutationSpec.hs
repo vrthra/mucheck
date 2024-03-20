@@ -9,7 +9,7 @@ import Test.MuCheck.Mutation
 import Control.Monad (MonadPlus, mplus, mzero)
 import Test.MuCheck.MuOp (mkMpMuOp, MuOp, (==>))
 import Data.Generics (GenericQ, mkQ, Data, Typeable, mkMp, listify)
-import Language.Haskell.Exts.Annotated
+import Language.Haskell.Exts
 import Here
 
 main :: IO ()

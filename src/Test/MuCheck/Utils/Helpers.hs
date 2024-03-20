@@ -1,6 +1,6 @@
 -- | Helper module for easier visualization
 module Test.MuCheck.Utils.Helpers where
-import Language.Haskell.Exts.Annotated
+import Language.Haskell.Exts
 import Test.MuCheck.MuOp
 
 -- | Class to allow easier visualization of values without munging `show`
