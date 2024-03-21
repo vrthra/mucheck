@@ -41,7 +41,7 @@ testrepl:
 	cabal repl --ghc-option='-package QuickCheck-2.6'
 
 hpcex:
-	- rm Examples/*.hi Examples/*.o *.tix tests
+	#- rm Examples/*.hi Examples/*.o *.tix tests
 	cabal build sample-test
 	./dist/build/sample-test/sample-test
 	./dist/build/mucheck/mucheck -tix sample-test.tix Examples/AssertCheckTest.hs

@@ -7,7 +7,6 @@ import Data.List
 import Data.Time.Clock.POSIX (getPOSIXTime)
 import Control.Monad (liftM)
 import qualified Data.Hashable as H
-import Debug.Trace
 
 -- | The `choose` function generates subsets of a given size
 choose :: [a] -> Int -> [[a]]
@@ -31,7 +30,7 @@ sample :: (RandomGen g) => g -> Int -> [t] -> [t]
 sample _ 0 _ = []
 sample _ n xs | length xs <= n = xs
 sample g n xs = val : sample g' (n - 1) (remElt idx xs)
-  where val = xs !! trace (show idx) idx
+  where val = xs !! idx
         (idx,g')  = randomR (0, length xs - 1) g
 
 -- | Wrapper around sample providing the random seed

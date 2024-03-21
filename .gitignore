@@ -3,6 +3,7 @@ Examples/*
 dist/*
 dist-newstyle/*
 .hpc/*
+*.tix
 .gitignore
 .cabal-sandbox/*
 cabal.sandbox.config
