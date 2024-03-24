@@ -1,6 +1,10 @@
 test.log
 Examples/*
 dist/*
+dist-newstyle/*
+.hpc/*
+*.tix
+.mutants/*
 .gitignore
 .cabal-sandbox/*
 cabal.sandbox.config

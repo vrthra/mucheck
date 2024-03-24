@@ -1,7 +1,6 @@
 module Test.MuCheck.Utils.SybSpec where
 
 import Test.Hspec
-import System.Random
 import qualified Test.MuCheck.Utils.Syb as S
 import Control.Monad (MonadPlus, mplus, mzero)
 import Test.MuCheck.MuOp (mkMpMuOp, MuOp)
@@ -11,27 +10,26 @@ import Language.Haskell.Exts
 main :: IO ()
 main = hspec spec
 
-m1 a b = Match (SrcLoc "<unknown>.hs" 15 1)
-           (Ident a)
-           [PApp (UnQual (Ident b)) [],PLit Signless (Int 0)]
-           Nothing
-           (UnGuardedRhs (Lit (Int 1)))
-           (BDecls [])
+dummySrcLoc = SrcLoc "<unknown>.hs" 15 1
 
-replM :: MonadPlus m => Name -> m Name
-replM (Ident "x") = return $ Ident "y"
+m1 a b = Match (dummySrcLoc)
+           (Ident dummySrcLoc a)
+           [PApp dummySrcLoc (UnQual dummySrcLoc (Ident dummySrcLoc b)) [],PLit dummySrcLoc (Signless dummySrcLoc) (Int dummySrcLoc 0 "0")]
+           (UnGuardedRhs dummySrcLoc (Lit dummySrcLoc (Int dummySrcLoc 1 "1")))
+           (Just (BDecls dummySrcLoc []))
+
+replM :: MonadPlus m => Name SrcLoc -> m (Name SrcLoc)
+replM (Ident l "x") = return $ Ident l "y"
 replM t = mzero
-
 
 spec :: Spec
 spec = do
   describe "once" $ do
     it "apply a function once on exp" $ do
-      (S.once (mkMp replM) (FunBind [m1 "y" "x"]) :: Maybe Decl) `shouldBe` Just (FunBind [m1 "y" "y"] :: Decl)
+      (S.once (mkMp replM) (FunBind dummySrcLoc [m1 "y" "x"]) :: Maybe (Decl SrcLoc)) `shouldBe` Just (FunBind dummySrcLoc [m1 "y" "y"] :: (Decl SrcLoc))
     it "apply a function just once" $ do
-      (S.once (mkMp replM) (FunBind [m1 "x" "x"]) :: Maybe Decl) `shouldBe` Just (FunBind [m1 "y" "x"] :: Decl)
+      (S.once (mkMp replM) (FunBind dummySrcLoc [m1 "x" "x"]) :: Maybe (Decl SrcLoc)) `shouldBe` Just (FunBind dummySrcLoc [m1 "y" "x"] :: (Decl SrcLoc))
     it "apply a function just once if possible" $ do
-      (S.once (mkMp replM) (FunBind [m1 "y" "y"]) :: Maybe Decl) `shouldBe` Nothing 
+      (S.once (mkMp replM) (FunBind dummySrcLoc [m1 "y" "y"]) :: Maybe (Decl SrcLoc)) `shouldBe` Nothing 
     it "should return all possibilities" $ do
-      (S.once (mkMp replM) (FunBind [m1 "x" "x"]) :: [Decl]) `shouldBe`  ([FunBind [m1 "y" "x"], FunBind [m1 "x" "y"]] :: [Decl])
-
+      (S.once (mkMp replM) (FunBind dummySrcLoc [m1 "x" "x"]) :: [(Decl SrcLoc)]) `shouldBe`  ([FunBind dummySrcLoc [m1 "y" "x"], FunBind dummySrcLoc [m1 "x" "y"]] :: [(Decl SrcLoc)])

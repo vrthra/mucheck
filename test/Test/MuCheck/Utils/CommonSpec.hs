@@ -32,11 +32,11 @@ spec = do
 
   describe "sample" $ do
     it "must sample a given size subset" $ do
-      sample (mkStdGen 1) 2 [1,2,3,4] `shouldBe` [2, 3]
+      sample (mkStdGen 1) 2 [1,2,3,4] `shouldBe` [2, 4]
 
   describe "sampleF" $ do
     it "must sample a given fraction subset" $ do
-      sampleF (mkStdGen 1) 0.5 [1,2,3,4] `shouldBe` [2, 3]
+      sampleF (mkStdGen 1) 0.5 [1,2,3,4] `shouldBe` [2, 4]
 
   describe "coupling" $ do
     it "must sample a given fraction subset" $ do

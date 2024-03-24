@@ -3,7 +3,7 @@ module Test.MuCheck.MutationSpec.Helpers where
 import Here
 import Test.MuCheck.Utils.Helpers
 import Test.MuCheck.Mutation
-import Language.Haskell.Exts.Annotated
+import Language.Haskell.Exts
 _myprop = [e|
 module Prop where
 import Test.QuickCheck
