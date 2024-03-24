@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.4.0.1] (Rahul Gopinath)
+  * Make mucheck compilable with latest Haskell libraries
+
 ## [0.4.0.0] (Rahul Gopinath)
   * Fix function mutation by making it similar to other mutation operators.
   * Allow users to specify their own groups of interchangeable functions
