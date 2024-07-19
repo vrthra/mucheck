@@ -16,19 +16,11 @@ First, we need the coverage information of our tests. While it is not
 a required part, it is *strongly* recommended that you provide the coverage
 information of your module using `-fhpc` flag to ghc. MuCheck can cut down
 on the number of mutants generated drastically by using the `HPC` information.
-
-Open MuCheck.cabal and inspect the `sample-test` executable, in particular,
-see the ghc options passed. It passes `-fhpc`. Next, we ask the cabal to build
-the `sample-test` for us.
+In order to run `sample-test` with coverage enabled we have to pass the `--enable-coverage` flag to cabal.
+The coverage information is written to the file`sample-test.tix` in the current directory.
 
 ```
-cabal build sample-test
-```
-Now, run it to produce the required coverage information which is written to
-`sample-test.tix` in the current directory.
-
-```
-cabal run sample-test
+cabal run --enable-coverage exe:sample-test
 ```
 
 We are now ready to run mucheck, let us run it.
