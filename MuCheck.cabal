@@ -16,6 +16,7 @@ author:              Duc Lee <ledu@onid.oregonstate.edu>,
 maintainer:          rahul@gopinath.org
 category:            Testing
 extra-doc-files:     changes.md
+tested-with:         GHC ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.2
 
 source-repository    head
   type:              git
